@@ -1,0 +1,24 @@
+{
+  "short_name": "KisanSaathi",
+  "name": "Kisan Saathi - Smart Agriculture",
+  "description": "Your ultimate digital agriculture companion designed for Indian farming. Track crops, dairy yields, view live mandi rates, and consult AI.",
+  "icons": [
+    {
+      "src": "/icon.svg",
+      "type": "image/svg+xml",
+      "sizes": "any",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "https://img.icons8.com/color/512/sprout.png",
+      "type": "image/png",
+      "sizes": "512x512",
+      "purpose": "any maskable"
+    }
+  ],
+  "start_url": "/",
+  "background_color": "#062416",
+  "theme_color": "#059669",
+  "display": "standalone",
+  "orientation": "portrait"
+}

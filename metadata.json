@@ -1,0 +1,11 @@
+{
+  "name": "KisanSaathi",
+  "description": "A comprehensive agricultural companion app for Indian farmers offering crop management, dairy logs, AI assistance, weather forecasts, and market prices in multiple languages.",
+  "requestFramePermissions": [
+    "camera",
+    "microphone"
+  ],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}
