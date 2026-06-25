@@ -1,13 +1,170 @@
-import { initializeApp } from 'firebase/app';
-import { getAuth } from 'firebase/auth';
-import firebaseConfig from '../../firebase-applet-config.json';
-
-// Initialize real Firebase for Auth only
-const app = initializeApp(firebaseConfig);
-export const auth = getAuth();
-
-// Mock Firestore object for import compatibility
+// Mock Firebase Auth and App configuration
 export const db = { _type: 'firestore-mock' };
+
+// Mock Firebase Auth state & listeners
+interface MockUser {
+  uid: string;
+  email: string | null;
+  displayName: string | null;
+  phoneNumber: string | null;
+}
+
+let mockCurrentUser: MockUser | null = null;
+const authListeners: Array<(user: MockUser | null) => void> = [];
+
+// Try to recover user session from sessionStorage on load
+try {
+  const localSession = sessionStorage.getItem('ks_session_user');
+  if (localSession) {
+    const parsed = JSON.parse(localSession);
+    mockCurrentUser = {
+      uid: parsed.uid || 'user_guest',
+      email: parsed.email || null,
+      displayName: parsed.name || null,
+      phoneNumber: parsed.phone || null
+    };
+  }
+} catch (e) {
+  console.warn("Mock auth restore session failed", e);
+}
+
+export const auth = {
+  get currentUser() {
+    return mockCurrentUser;
+  }
+};
+
+export const browserSessionPersistence = 'session';
+
+export type ConfirmationResult = any;
+
+export async function setPersistence(authInstance: any, persistenceType: any) {
+  return Promise.resolve();
+}
+
+const getFakePassword = (pin: string) => `${pin}000000`.substring(0, 6);
+
+export async function signInWithEmailAndPassword(authInstance: any, email: string, pinCodeFakePassword: any) {
+  const phone = email.split('@')[0];
+  try {
+    const res = await fetch(`/api/db/get?collection=users&docId=user_${phone}`);
+    if (res.ok) {
+      const userData = await res.json();
+      if (userData && (userData.pin === pinCodeFakePassword || getFakePassword(userData.pin || '') === pinCodeFakePassword)) {
+        mockCurrentUser = {
+          uid: userData.uid || `user_${phone}`,
+          email: email,
+          displayName: userData.name || null,
+          phoneNumber: userData.phone || phone,
+        };
+        triggerAuthListeners();
+        return { user: mockCurrentUser };
+      }
+    }
+  } catch (err) {
+    console.warn("Mock signin fetch failed, falling back to local verification:", err);
+  }
+  
+  // Try checking ks_db_users local cache if backend failed
+  try {
+    const localUsersJson = localStorage.getItem('ks_db_users');
+    if (localUsersJson) {
+      const localUsers = JSON.parse(localUsersJson);
+      const matched = localUsers.find((u: any) => u.phone && u.phone.replace(/\D/g, '') === phone);
+      if (matched && (matched.pin === pinCodeFakePassword || getFakePassword(matched.pin || '') === pinCodeFakePassword)) {
+        mockCurrentUser = {
+          uid: matched.uid || `user_${phone}`,
+          email: email,
+          displayName: matched.name || null,
+          phoneNumber: matched.phone || phone,
+        };
+        triggerAuthListeners();
+        return { user: mockCurrentUser };
+      }
+    }
+  } catch (e) {
+    console.warn("Local storage cache authentication check failed", e);
+  }
+
+  throw new Error("auth/user-not-found");
+}
+
+export async function createUserWithEmailAndPassword(authInstance: any, email: string, pinCodeFakePassword: any) {
+  const phone = email.split('@')[0];
+  mockCurrentUser = {
+    uid: `user_${phone}`,
+    email: email,
+    displayName: 'Farmer',
+    phoneNumber: phone
+  };
+  triggerAuthListeners();
+  return { user: mockCurrentUser };
+}
+
+export async function signOut(authInstance: any) {
+  mockCurrentUser = null;
+  triggerAuthListeners();
+  return Promise.resolve();
+}
+
+export function onAuthStateChanged(authInstance: any, callback: (user: MockUser | null) => void) {
+  authListeners.push(callback);
+  // Trigger callback immediately
+  setTimeout(() => {
+    callback(mockCurrentUser);
+  }, 0);
+  return () => {
+    const index = authListeners.indexOf(callback);
+    if (index !== -1) {
+      authListeners.splice(index, 1);
+    }
+  };
+}
+
+function triggerAuthListeners() {
+  authListeners.forEach(cb => {
+    try {
+      cb(mockCurrentUser);
+    } catch (e) {
+      console.error("Error triggering auth listener:", e);
+    }
+  });
+}
+
+export async function updateProfile(userInstance: any, profileUpdates: { displayName?: string; photoURL?: string }) {
+  if (mockCurrentUser) {
+    mockCurrentUser.displayName = profileUpdates.displayName || mockCurrentUser.displayName;
+  }
+  return Promise.resolve();
+}
+
+// Mock Recaptcha for complete local compatibility
+export class RecaptchaVerifier {
+  constructor(authInstance: any, elementId: string, options: any) {
+    console.log("Mock RecaptchaVerifier initialized for element:", elementId);
+  }
+  async verify() {
+    return Promise.resolve("mock-recaptcha-token");
+  }
+}
+
+export async function signInWithPhoneNumber(authInstance: any, phone: string, appVerifier: any) {
+  return Promise.resolve({
+    confirm: async (code: string) => {
+      mockCurrentUser = {
+        uid: `user_${phone.replace(/\D/g, '')}`,
+        email: `${phone.replace(/\D/g, '')}@farm.app.local`,
+        displayName: 'Farmer',
+        phoneNumber: phone
+      };
+      triggerAuthListeners();
+      return {
+        user: mockCurrentUser
+      };
+    }
+  });
+}
+
 
 // --- IN-MEMORY CACHE STORE (NO LOCAL STORAGE) ---
 const inMemoryDb: Record<string, any[]> = {};

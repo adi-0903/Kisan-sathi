@@ -1083,7 +1083,7 @@ Respond in JSON format: { "recommendation": "Spray Now / Wait", "reasoning": "Si
       const rows = await db.select().from(appData).where(eq(appData.collection, collection));
       const items = rows.map(r => {
         try {
-          return { id: r.docId, uid: r.docId, ...JSON.parse(r.data) };
+          return { ...JSON.parse(r.data), id: r.docId, uid: r.docId };
         } catch (_) {
           return null;
         }
@@ -1104,15 +1104,15 @@ Respond in JSON format: { "recommendation": "Spray Now / Wait", "reasoning": "Si
       }
       const { db } = await import("./src/db/index.js");
       const { appData } = await import("./src/db/schema.js");
-      const { and, eq } = await import("drizzle-orm");
+      const { eq } = await import("drizzle-orm");
 
-      const [row] = await db.select().from(appData).where(and(eq(appData.collection, collection), eq(appData.docId, docId)));
+      const [row] = await db.select().from(appData).where(eq(appData.id, `${collection}:${docId}`));
       if (!row) {
         return res.status(404).json({ error: "Document not found" });
       }
 
       try {
-        res.json({ id: row.docId, uid: row.docId, ...JSON.parse(row.data) });
+        res.json({ ...JSON.parse(row.data), id: row.docId, uid: row.docId });
       } catch (_) {
         res.status(500).json({ error: "Failed to parse document data" });
       }
@@ -1191,9 +1191,8 @@ Respond in JSON format: { "recommendation": "Spray Now / Wait", "reasoning": "Si
       }
       const { db } = await import("./src/db/index.js");
       const { appData } = await import("./src/db/schema.js");
-      const { and, eq } = await import("drizzle-orm");
-
-      const [existing] = await db.select().from(appData).where(and(eq(appData.collection, collection), eq(appData.docId, docId)));
+      const { eq } = await import("drizzle-orm");
+      const [existing] = await db.select().from(appData).where(eq(appData.id, `${collection}:${docId}`));
       let mergedData = { ...data };
       if (existing) {
         try {

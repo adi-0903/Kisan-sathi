@@ -4,8 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { useAuth, UserRole } from '../lib/AuthContext';
 import { BrandLogo } from '../components/BrandLogo';
 import { ShieldCheck, CheckCircle2, Tractor, ShoppingBag, MapPin, Loader2, Search } from 'lucide-react';
-import { auth } from '../lib/firebase';
-import { RecaptchaVerifier, signInWithPhoneNumber, ConfirmationResult } from 'firebase/auth';
+import { auth, RecaptchaVerifier, signInWithPhoneNumber } from '../lib/firebase';
 
 type RegisterStep = 'PHONE' | 'OTP' | 'DETAILS';
 

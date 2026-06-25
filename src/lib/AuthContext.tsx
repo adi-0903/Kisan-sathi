@@ -1,6 +1,18 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { auth, db, doc, getDoc, setDoc } from './firebase';
-import { signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, onAuthStateChanged, updateProfile, setPersistence, browserSessionPersistence } from 'firebase/auth';
+import { 
+  auth, 
+  db, 
+  doc, 
+  getDoc, 
+  setDoc,
+  signInWithEmailAndPassword, 
+  createUserWithEmailAndPassword, 
+  signOut, 
+  onAuthStateChanged, 
+  updateProfile, 
+  setPersistence, 
+  browserSessionPersistence 
+} from './firebase';
 
 export type UserRole = 'consumer' | 'supplier';
 

@@ -4,8 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { useAuth } from '../lib/AuthContext';
 import { ArrowRight, Loader2, ShieldCheck, KeyRound } from 'lucide-react';
 import { BrandLogo } from '../components/BrandLogo';
-import { auth, db, getDoc, doc } from '../lib/firebase';
-import { RecaptchaVerifier, signInWithPhoneNumber, ConfirmationResult } from 'firebase/auth';
+import { auth, db, getDoc, doc, RecaptchaVerifier, signInWithPhoneNumber } from '../lib/firebase';
 
 type LoginMode = 'PIN' | 'OTP';
 
