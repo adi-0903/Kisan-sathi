@@ -56,7 +56,7 @@ type AuthContextType = {
 
 const AuthContext = createContext<AuthContextType | null>(null);
 
-const withTimeout = <T,>(promise: Promise<T>, ms: number = 4000): Promise<T> => {
+const withTimeout = <T,>(promise: Promise<T>, ms: number = 15000): Promise<T> => {
   return Promise.race([
     promise,
     new Promise<T>((_, reject) => setTimeout(() => reject(new Error('timeout')), ms))
@@ -142,6 +142,14 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       } catch (authErr: any) {
         console.warn("Firebase Auth sign-in failed, checking safe local fallback:", authErr.message);
         
+        if (authErr.message === 'Invalid PIN') {
+          throw new Error("Invalid Security Code. Please try again.");
+        }
+        
+        if (authErr.message === 'timeout') {
+          throw new Error("Connection timed out. Please try again.");
+        }
+        
         // Let's implement local validation using users collection (this works offline/local-first as well)
         let userData: any = null;
         let foundUser = false;
@@ -169,6 +177,8 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
             sessionStorage.setItem('ks_session_user', JSON.stringify(userData));
             sessionStorage.setItem('ks_is_local_only', 'true');
             return true;
+          } else {
+             throw new Error("Invalid Security Code. Please try again.");
           }
         }
         
