@@ -3,8 +3,9 @@ import { dbClient } from '../lib/dbClient';
 import { useAuth, User } from '../lib/AuthContext';
 import { useSubscription } from '../lib/subscription';
 import { useNavigate } from 'react-router-dom';
-import { ShoppingBag, MapPin, Package, Clock, CheckCircle, Database, Search, Filter, ShieldCheck, Heart, User as UserIcon, HelpCircle, Users } from 'lucide-react';
+import { ShoppingBag, MapPin, Package, Clock, CheckCircle, Database, Search, Filter, ShieldCheck, Heart, User as UserIcon, HelpCircle, Users, Download } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { jsPDF } from 'jspdf';
 
 export function ConsumerHomeScreen() {
   const { user } = useAuth();
@@ -212,6 +213,58 @@ export function ConsumerHomeScreen() {
   });
 
   const categories = ['All', 'Vegetables', 'Fruits', 'Grains', 'Dairy'];
+
+  const generateOrderBill = (order: any) => {
+    const doc = new jsPDF();
+    doc.setFillColor(6, 78, 59); // emerald-900
+    doc.rect(0, 0, 210, 40, 'F');
+    
+    doc.setTextColor(255, 255, 255);
+    doc.setFontSize(24);
+    doc.setFont('helvetica', 'bold');
+    doc.text('KisanSaathi Fresh', 14, 25);
+    
+    doc.setFontSize(10);
+    doc.setFont('helvetica', 'normal');
+    doc.text('Order Invoice', 14, 34);
+
+    doc.setTextColor(0, 0, 0);
+    doc.setFontSize(12);
+    doc.setFont('helvetica', 'bold');
+    doc.text(`Order ID: #${order.id?.slice(0,8).toUpperCase()}`, 14, 55);
+    doc.setFont('helvetica', 'normal');
+    doc.text(`Date: ${new Date(order.createdAt).toLocaleDateString()}`, 14, 62);
+    doc.text(`Delivery Address: ${order.deliveryAddress}`, 14, 69);
+    
+    doc.setFont('helvetica', 'bold');
+    doc.text(`Payment Status: ${order.paymentStatus === 'Done' ? 'PAID' : 'PENDING'}`, 140, 55);
+    
+    let y = 85;
+    doc.setFillColor(243, 244, 246);
+    doc.rect(14, y, 182, 10, 'F');
+    doc.setFontSize(10);
+    doc.setFont('helvetica', 'bold');
+    doc.text('Item', 18, y + 7);
+    doc.text('Qty', 120, y + 7);
+    doc.text('Total', 160, y + 7);
+    
+    y += 10;
+    doc.setFont('helvetica', 'normal');
+    order.items.forEach((item: any) => {
+      doc.text(item.productName, 18, y + 7);
+      doc.text(`${item.quantity} ${item.unit || ''}`, 120, y + 7);
+      doc.text(`Rs. ${item.totalAmount}`, 160, y + 7);
+      y += 10;
+    });
+    
+    y += 10;
+    doc.setFont('helvetica', 'bold');
+    doc.text('Grand Total:', 120, y);
+    doc.setTextColor(22, 163, 74);
+    doc.text(`Rs. ${order.totalAmount}`, 160, y);
+
+    doc.save(`Invoice_${order.id?.slice(0,8)}.pdf`);
+  };
 
   return (
     <div className="min-h-screen bg-gray-50 pb-28">
@@ -468,6 +521,19 @@ export function ConsumerHomeScreen() {
                       <MapPin size={10} className="text-gray-400" /> Deliver to: {o.deliveryAddress?.slice(0, 30)}
                     </div>
                     <div className="text-base font-black text-emerald-800">₹{o.totalAmount}</div>
+                  </div>
+                  <div className="flex justify-between items-center pt-2">
+                    {o.paymentStatus === 'Done' ? (
+                      <span className="text-[10px] bg-green-100 text-green-700 px-2 py-1 rounded font-bold border border-green-200">Payment: Done</span>
+                    ) : (
+                      <span className="text-[10px] bg-yellow-100 text-yellow-700 px-2 py-1 rounded font-bold border border-yellow-200">Payment: Pending</span>
+                    )}
+                    <button 
+                      onClick={() => generateOrderBill(o)}
+                      className="text-[10px] bg-emerald-600 text-white flex items-center gap-1 px-3 py-1.5 rounded-lg font-bold shadow hover:bg-emerald-700"
+                    >
+                      <Download size={12} /> Generate Bill
+                    </button>
                   </div>
                 </div>
               ))

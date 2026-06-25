@@ -4,6 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '../lib/AuthContext';
 import { dbClient } from '../lib/dbClient';
+import { useSyncState } from '../lib/store';
 
 export function D2CScreen() {
   const { t } = useTranslation();
@@ -12,6 +13,7 @@ export function D2CScreen() {
   
   const [products, setProducts] = useState<any[]>([]);
   const [orders, setOrders] = useState<any[]>([]);
+  const [finances, setFinances] = useSyncState<any[]>('ks_finances', []);
 
   const [showAddModal, setShowAddModal] = useState(false);
   const [editingProduct, setEditingProduct] = useState<any>(null);
@@ -130,6 +132,28 @@ export function D2CScreen() {
       });
     } catch (e) {
       console.error(e);
+    }
+  };
+
+  const handleMarkPaymentDone = async (order: any) => {
+    try {
+      await dbClient.update('orders', order.id, { 
+        paymentStatus: 'Done',
+        updatedAt: new Date().toISOString()
+      });
+      
+      const newEntry = {
+        id: Date.now(),
+        type: 'income',
+        amount: order.totalAmount,
+        category: `D2C Sale: #${order.id?.slice(0, 8)}`,
+        date: new Date().toISOString().split('T')[0]
+      };
+      setFinances([newEntry, ...finances].sort((a: any, b: any) => new Date(b.date).getTime() - new Date(a.date).getTime()));
+      alert("Payment marked as done and recorded in Finance.");
+    } catch (e) {
+      console.error(e);
+      alert("Error updating payment status");
     }
   };
 
@@ -285,6 +309,16 @@ export function D2CScreen() {
                       <button onClick={() => updateOrderStatus(o.id, 'Delivered')} className="flex-1 bg-purple-50 text-purple-600 font-bold py-2 rounded-lg text-sm transition-colors hover:bg-purple-100">
                         Mark Delivered
                       </button>
+                    )}
+                    {o.status === 'Delivered' && (!o.paymentStatus || o.paymentStatus !== 'Done') && (
+                      <button onClick={() => handleMarkPaymentDone(o)} className="flex-1 bg-green-50 text-green-600 font-bold py-2 rounded-lg text-sm transition-colors hover:bg-green-100">
+                        Mark Payment Done
+                      </button>
+                    )}
+                    {o.paymentStatus === 'Done' && (
+                      <div className="flex-1 text-center bg-gray-50 text-gray-500 font-bold py-2 rounded-lg text-sm border border-gray-100">
+                        Payment Done
+                      </div>
                     )}
                   </div>
                 </div>
