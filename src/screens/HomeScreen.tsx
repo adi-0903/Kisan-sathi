@@ -288,12 +288,7 @@ export function HomeScreen() {
               <span className="text-[10px] sm:text-xs font-bold text-gray-700 dark:text-gray-300 text-center leading-tight">Inventory</span>
             </button>
 
-            <button onClick={() => navigate('/logistics')} className="flex flex-col items-center min-w-[72px] group">
-              <div className="w-14 h-14 bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 rounded-full flex items-center justify-center text-indigo-600 dark:text-indigo-400 shadow-sm mb-2 group-hover:scale-110 transition-transform">
-                 <Truck size={22} />
-              </div>
-              <span className="text-[10px] sm:text-xs font-bold text-gray-700 dark:text-gray-300 text-center leading-tight">Logistics</span>
-            </button>
+
 
             <button onClick={() => navigate('/machinery')} className="flex flex-col items-center min-w-[72px] group">
               <div className="w-14 h-14 bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 rounded-full flex items-center justify-center text-yellow-600 dark:text-yellow-400 shadow-sm mb-2 group-hover:scale-110 transition-transform">
