@@ -1,170 +1,111 @@
-# 🌾 KisanSaathi (किसान साथी)
-
 <div align="center">
-  <p align="center">
-    <img src="https://images.unsplash.com/photo-1592982537447-6f2a6a0c7c18?auto=format&fit=crop&w=150&q=80" alt="KisanSaathi Logo" width="120" style="border-radius: 30px; box-shadow: 0 10px 25px rgba(0,0,0,0.2); margin-bottom: 20px;" />
-  </p>
-  <h1>The Complete Farm-to-Fork Ecosystem</h1>
-  <p><b>Empowering Indian Farmers with GenAI, Smart Livestock Management, and Direct-to-Consumer Marketplaces</b></p>
+  <img src="https://images.unsplash.com/photo-1592982537447-6f2a6a0c7c18?auto=format&fit=crop&w=150&q=80" alt="KisanSaathi Logo" width="150" style="border-radius: 20px; box-shadow: 0 10px 25px rgba(0,0,0,0.2); margin-bottom: 20px;" />
+
+  # 🌾 KisanSaathi (किसान साथी)
+  
+  **The Complete Farm-to-Fork Ecosystem empowering Indian Farmers with GenAI, Smart Livestock Management, and Direct-to-Consumer Marketplaces.**
 
   <br />
 
   [![React 19](https://img.shields.io/badge/React_19-20232A?style=for-the-badge&logo=react&logoColor=61DAFB)](https://react.dev)
-  [![Firebase](https://img.shields.io/badge/Firebase_Auth-FFCA28?style=for-the-badge&logo=firebase&logoColor=black)](https://firebase.google.com)
+  [![Firebase Auth](https://img.shields.io/badge/Firebase_Auth-FFCA28?style=for-the-badge&logo=firebase&logoColor=black)](https://firebase.google.com)
   [![Neon PostgreSQL](https://img.shields.io/badge/Neon_PostgreSQL-00e699?style=for-the-badge&logo=postgresql&logoColor=black)](https://neon.tech)
   [![Tailwind CSS v4](https://img.shields.io/badge/Tailwind_CSS_v4-38B2AC?style=for-the-badge&logo=tailwindcss&logoColor=white)](#)
   [![Google Gemini 2.5](https://img.shields.io/badge/Gemini_2.5_Flash-8E75B2?style=for-the-badge&logo=google&logoColor=white)](#)
   [![TypeScript 5.8](https://img.shields.io/badge/TypeScript_5.8-007ACC?style=for-the-badge&logo=typescript&logoColor=white)](#)
+
 </div>
 
 ---
 
 ## 📖 Table of Contents
-1. [Project Vision & Dual Ecosystem](#-project-vision--dual-ecosystem)
-2. [System Architecture](#%EF%B8%8F-system-architecture)
-3. [Key Features & Tour of Screens](#-key-features--tour-of-screens)
-4. [Session Isolation & Security Rules](#-session-isolation--security-rules)
-5. [Database Architecture & Syncing](#-database-architecture--syncing)
-6. [Local Development Setup](#%EF%B8%8F-local-development-setup)
-7. [Production Deployment Guide](#-production-deployment-guide)
+- [🌟 Project Vision](#-project-vision)
+- [⚡ Architecture & Tech Stack](#-architecture--tech-stack)
+- [🚜 Core Features for Farmers](#-core-features-for-farmers)
+- [🛒 Core Features for Consumers](#-core-features-for-consumers)
+- [🛡️ Security & Data Privacy](#%EF%B8%8F-security--data-privacy)
+- [⚙️ Local Development Setup](#%EF%B8%8F-local-development-setup)
+- [🚀 Production Deployment](#-production-deployment)
 
 ---
 
-## 🌟 Project Vision & Dual Ecosystem
+## 🌟 Project Vision
 
-**KisanSaathi** ("Farmer's Companion") is a next-generation Agritech and Agri-Fintech platform. It is a full-stack, responsive web application engineered to solve two critical agricultural problems in India: the reliance on predatory middlemen and the lack of accessible, data-driven farming tools for rural landholders.
+**KisanSaathi** ("Farmer's Companion") is a next-generation Agritech and Agri-Fintech platform. Designed from the ground up as a full-stack, highly responsive progressive web application, it bridges the gap between rural landholders and modern data-driven agriculture.
 
-```
-                  +----------------------------------------------+
-                  |         KisanSaathi React SPA Client         |
-                  +----------------------+-----------------------+
-                                         |
-                       [ HTTP / JSON ]   |   [ Session Auth ]
-                                         v
-                  +----------------------+-----------------------+
-                  |       Secure Node/Express Proxy Server       |
-                  |     (Vite Dev Server / Production CJS)       |
-                  +---------+------------------------+-----------+
-                            |                        |
-             [ SQL Queries ]|                        | [ Gemini Prompts ]
-                            v                        v
-                     +------+------+          +------+------+
-                     |   Neon DB   |          |  Google AI  |
-                     | PostgreSQL  |          | Gemini API  |
-                     +-------------+          +-------------+
-```
-
-### 🚜 For Farmers (The Supplier Command Center)
-*   **Agronomy Ledgers:** Track crop growth cycles, sowing times, and projected harvest dates.
-*   **Dairy Milk yields:** Log milk production charts per livestock animal (SNF and fat analytics).
-*   **Agro-Fintech Logs:** Record income, operational costs, credit lines, and generate banking PDF reports.
-*   **AI Leaf Pathology:** Snap photos of crop leaves to diagnose pests and diseases in real-time.
-
-### 🛒 For Consumers (The Direct-to-Consumer Hub)
-*   **Mandi Price Checks:** View real-time commodity prices across regional Mandis (APMC).
-*   **Produce Marketplace:** Purchase fresh produce directly from regional farmers.
-*   **Price-Lock Subscriptions:** Subscribe to monthly recurring baskets of dairy or crop harvests directly from local farms.
+The platform eliminates predatory middlemen by connecting farmers directly to consumers, and empowers rural workers with Gemini AI-powered diagnostics, double-entry financial ledgers, and crop monitoring.
 
 ---
 
-## ⚡ System Architecture
+## ⚡ Architecture & Tech Stack
 
-KisanSaathi is engineered for maximum security, fast loading times, and sandboxed user sessions:
+KisanSaathi uses a monolithic proxy architecture engineered for maximum security, instantaneous load times, and sandboxed user sessions:
 
 ```mermaid
 graph TD
     User([Browser Client]) -->|React Router| SPA[Vite React SPA]
     SPA -->|Session State| SessionStore[(sessionStorage)]
-    SPA -->|Real-time Poll / DB APIs| ExpressProxy[Express Proxy Server]
+    SPA -->|Real-time DB Events| ExpressProxy[Express Backend]
     ExpressProxy -->|Drizzle ORM| NeonDB[(Neon PostgreSQL)]
-    SPA -->|Firebase Auth SDK| FirebaseAuth[Firebase Auth Cloud]
-    ExpressProxy -->|Google GenAI SDK| Gemini[Gemini 2.5 Flash]
-    ExpressProxy -->|Twilio SDK| Twilio[Twilio SMS Gateway]
-    ExpressProxy -->|API Proxy Fetch| ExternalAPIs[OpenWeather & APMC Mandi APIs]
+    SPA -->|Auth SDK| FirebaseAuth[Firebase Auth]
+    ExpressProxy -->|GenAI Diagnostics| Gemini[Gemini 2.5 Flash]
+    ExpressProxy -->|API Proxy Fetch| ExternalAPIs[OpenWeather & Market APIs]
 ```
 
-*   **Vite SPA Client:** React 19 single-page client rendering visual, interactive charts via Recharts and animations using motion/react.
-*   **Monolithic Express Backend Proxy:** Serves static build files, manages API connections, handles rate-limiting, and routes database operations to PostgreSQL.
-*   **Neon Serverless Postgres:** Drizzle-backed relational store housing all shared business models (products, orders, profiles).
+- **Frontend:** React 19, TypeScript, Tailwind CSS v4, Lucide React, Recharts, Framer Motion.
+- **Backend:** Node.js, Express.js proxy server.
+- **Database:** Neon Serverless PostgreSQL with Drizzle ORM.
+- **AI & External Services:** Google Gemini 2.5 Flash (for leaf disease diagnosis), Firebase Authentication (Mobile OTP & PIN), OpenWeather API.
 
 ---
 
-## 📱 Key Features & Tour of Screens
+## 🚜 Core Features for Farmers
+Transform your mobile device into a digital farm command center:
 
-The platform supports **28 specialized screens** structured for both Farmers and Consumers:
-
-### 🔐 Security & Onboarding
-*   `SplashScreen.tsx` — An elegant ambient green startup loading screen.
-*   `LoginScreen.tsx` — Mobile-first authentication supporting **Security PIN** or **OTP (Twilio SMS)**.
-*   `RegisterScreen.tsx` — Visual role picker (Farmer vs. Consumer) and onboarding wizard.
-*   `InstallAppScreen.tsx` — Visual guide for installing KisanSaathi as a Progressive Web App (PWA).
-
-### 🚜 Farmer Dashboards
-*   `HomeScreen.tsx` — Bento grid containing weather bulletins, quick links, and dairy summaries.
-*   `CropsScreen.tsx` / `CropLogScreen.tsx` — Digital field log detailing crop varieties, fertilization, and logs.
-*   `SoilHealthScreen.tsx` — NPK balance journals and soil analysis charts.
-*   `DiseaseDetectorScreen.tsx` — Gemini-powered diagnostic scanner for leaf diseases.
-*   `WeatherScreen.tsx` — Live atmospheric forecasts and agricultural guidelines.
-*   `FinanceScreen.tsx` — Income/Expense double-entry book and credit calculators.
-*   `ReportsScreen.tsx` — One-click PDF compiler utilizing jsPDF.
-*   `DairyScreen.tsx` — Milk yield logs, SNF fat rates, and feeding intervals.
-*   `InventoryScreen.tsx` — Tracker for seeds, tools, and fertilizers with stock alert thresholds.
-*   `TasksScreen.tsx` — Crop chore checklist.
-*   `LaborScreen.tsx` — Crew attendance log and wage sheets.
-*   `MachineryScreen.tsx` — Tractor fuel, service scheduler, and neighbor sharing list.
-
-### 🛒 D2C Marketplace
-*   `ConsumerHomeScreen.tsx` — Fresh organic storefront categories.
-*   `D2CScreen.tsx` — Farmer configurator for listing yields, uploading photos, and setting prices.
-*   `SubscriptionsScreen.tsx` — Multi-month direct farm produce and dairy subscription options.
-*   `LogisticsScreen.tsx` — Delivery tracker from farm gate to Mandel or consumer doorstep.
-*   `MarketScreen.tsx` — Live commodity rates parsed from APMC API endpoints.
-*   `FarmerDirectoryScreen.tsx` — Regional contact directory to collaborate with nearby farmers.
-*   `SchemesScreen.tsx` — Directory of active government agrarian subsidies and registration guides.
-*   `ShopScreen.tsx` — Marketplace for buying verified fertilizers, seeds, and tools.
-
-### ⚙️ Global Utilities
-*   `AIScreen.tsx` — Translation-ready Gemini chat assistant.
-*   `ProfileScreen.tsx` — Account settings, digital farm passport, and payout setup.
-*   `SettingsScreen.tsx` — Language configurations (English/Hindi), dark mode, and system tools.
+- 📊 **Agronomy Ledgers:** Track crop growth cycles, sowing times, and projected harvest dates.
+- 🐄 **Smart Dairy Management:** Log daily milk production charts per livestock animal (SNF and fat analytics).
+- 💰 **Agro-Fintech Logs:** Maintain an income and expense double-entry book, calculate credit lines, and generate instant PDF banking reports.
+- 🔬 **AI Leaf Pathology:** Snap and upload photos of crop leaves to receive real-time diagnosis of pests and diseases powered by Gemini AI.
+- 🛠️ **Agri Input Store:** Buy verified fertilizers, seeds, and farming equipment dynamically updated by suppliers.
+- ☁️ **Hyperlocal Weather:** Live atmospheric forecasts and agricultural guidelines based on regional API data.
+- 📋 **Resource Tracking:** Manage your inventory, daily labor checklists, crew attendance, and machinery logs.
 
 ---
 
-## 🔒 Session Isolation & Security Rules
+## 🛒 Core Features for Consumers
+Connect directly to the source for fresher, cheaper, and more sustainable produce:
 
-To prevent session leaks and credentials exposures, KisanSaathi implements a multi-tiered security pattern:
-
-1.  **Session-Scoped Auth:** The user session state is managed exclusively in `sessionStorage` (`ks_session_user` and `ks_is_local_only`). Closing the browser tab or opening the URL in a new device automatically wipes all session variables, forcing a clean login window.
-2.  **Firebase Session Lifecycles:** Firebase Auth is initialized to enforce `browserSessionPersistence`. Auth tokens do not carry over to new tabs or system reboots.
-3.  **Monolithic API Proxies:** No API keys are bundled inside client browser scripts. The client sends queries through Express backend controllers, which proxy the requests and attach keys server-side:
-    *   `POST /api/gemini/vision` -> Proxies Gemini API leaf diagnostics.
-    *   `GET /api/weather` -> Proxies OpenWeather queries.
-    *   `POST /api/otp/send` -> Proxies Twilio verification codes.
+- 🍅 **Direct-to-Consumer Hub:** Purchase fresh organic produce directly from regional farmers.
+- 📉 **Mandi Price Checker:** View real-time commodity prices across regional APMC Mandis to ensure fair trades.
+- 📦 **Price-Lock Subscriptions:** Subscribe to monthly/yearly recurring baskets of dairy or crop harvests directly from local farms.
+- 🚚 **Delivery Tracker:** Seamlessly track your incoming produce from the farm gate directly to your doorstep.
+- 🏪 **Agri Input Marketplace Manager:** Verified businesses can list, update, and manage incoming orders for fertilizers, seeds, and equipment directly from farmers.
 
 ---
 
-## 🗄️ Database Architecture & Syncing
+## 🛡️ Security & Data Privacy
 
-KisanSaathi operates a direct-to-database backend pipeline backed by **Neon Serverless PostgreSQL** and mapped using Drizzle ORM:
+KisanSaathi implements a rigorous, multi-tiered security pattern to prevent session leaks and credential exposures:
 
-*   **Single Source of Truth:** `src/lib/firebase.ts` acts as the cloud query broker. All database calls write directly to your PostgreSQL instance in real-time.
-*   **In-Memory UI State:** Client state uses a volatile, in-memory dictionary `inMemoryDb` that syncs instantly with backend data. **No database tables are stored in localStorage**, preventing local data leakage.
-*   **Fail-Fast Error Handling:** If connection to PostgreSQL is lost, the wrapper propagates errors directly to the React layer, allowing forms to display alerts to the user immediately.
+1. **Session-Scoped Auth:** The user session state is managed exclusively in volatile `sessionStorage`. Closing the browser wipes all session variables, forcing a clean login window.
+2. **Firebase Auth Sandboxing:** Utilizes `browserSessionPersistence`. Auth tokens do not carry over across tabs or system reboots.
+3. **Monolithic API Proxies:** No API keys are bundled inside client browser scripts. The Vite client routes all secure requests (like Gemini AI parsing or Twilio OTPs) through the Express backend controllers, which securely proxy the requests using server-side keys.
+4. **Direct-to-Database Sync:** Client state uses an in-memory database wrapper that syncs instantly with the Neon PostgreSQL backend via an Express socket simulation. **No tables are cached in `localStorage`.**
 
 ---
 
 ## ⚙️ Local Development Setup
 
-Set up your local machine to run and inspect KisanSaathi:
+To test and run KisanSaathi locally:
 
-### Prerequisites
-*   **Node.js:** v20.0.0 or higher
-*   **NPM:** v10.0.0 or higher
+### 1. Prerequisites
+- **Node.js:** v20.0.0 or higher
+- **NPM:** v10.0.0 or higher
 
-### 1. Set Up Environment Variables
-Create a `.env` file in the root directory:
+### 2. Environment Variables
+Create a `.env` file in the root directory and populate it with your service credentials:
 ```env
-# Twilio credentials (SMS OTP)
+# Twilio credentials (SMS OTP verification)
 TWILIO_ACCOUNT_SID=your_twilio_sid
 TWILIO_AUTH_TOKEN=your_twilio_auth_token
 TWILIO_PHONE_NUMBER=your_twilio_phone_number
@@ -173,7 +114,7 @@ TWILIO_PHONE_NUMBER=your_twilio_phone_number
 GROQ_API_KEY=your_groq_api_key
 GEMINI_API_KEY=your_gemini_api_key
 
-# Neon DB Connection String
+# Database Connection
 NEON_DATABASE_URL=postgresql://your_user:your_password@your_neon_host/neondb?sslmode=require
 
 # External APIs
@@ -181,7 +122,7 @@ OPENWEATHER_API_KEY=your_weather_key
 DATAGOVIN_API_KEY=your_mandi_key
 ```
 
-### 2. Configure Firebase Config Template
+### 3. Firebase Configuration
 Ensure `firebase-applet-config.json` in the root contains your Firebase credentials:
 ```json
 {
@@ -192,38 +133,36 @@ Ensure `firebase-applet-config.json` in the root contains your Firebase credenti
 }
 ```
 
-### 3. Install & Run
+### 4. Install & Launch
+Install the necessary dependencies and spin up both the Vite SPA and Node backend:
 ```bash
-# Install dependencies
 npm install
-
-# Start Vite SPA + Node API Backend
 npm run dev
 ```
-Open [http://localhost:3000](http://localhost:3000) in your browser.
+Navigate to [http://localhost:3000](http://localhost:3000) in your web browser.
 
 ---
 
-## 🚀 Production Deployment Guide
+## 🚀 Production Deployment
 
-You can deploy the unified full-stack server to any Node-compatible platform (like **Render**, **Railway**, or **Google Cloud Run**).
+KisanSaathi is structurally designed to be deployed effortlessly on Node-compatible platforms like **Render**, **Railway**, or **Google Cloud Run**.
 
-### Deployment to Render (Recommended)
-1.  **Push your code** to GitHub.
-2.  Log in to [Render](https://render.com/) and click **New > Web Service**.
-3.  Connect your GitHub repository.
-4.  Configure the settings:
-    *   **Runtime:** `Node`
-    *   **Build Command:** `npm install && npm run build`
-    *   **Start Command:** `npm start`
-5.  Click **Advanced** and add your environment variables (`NEON_DATABASE_URL`, `TWILIO_ACCOUNT_SID`, `GROQ_API_KEY`, `OPENWEATHER_API_KEY`, etc.).
-6.  Click **Create Web Service**. 
+### Quick Deployment via Render
+1. Push your latest code to your GitHub repository.
+2. Log in to [Render.com](https://render.com/) and create a **New Web Service**.
+3. Connect your repository.
+4. Apply the following Configuration:
+    - **Runtime:** `Node`
+    - **Build Command:** `npm install && npm run build`
+    - **Start Command:** `npm start`
+5. Click **Advanced** and safely input all of your Environment Variables (`NEON_DATABASE_URL`, `GEMINI_API_KEY`, etc.).
+6. Click **Create Web Service**.
 
-Once Render builds the Vite assets and spins up the Express server, your app will be live on a secure, public URL!
+Once deployed, Render automatically serves your static Vite frontend while keeping your Express API proxies secure and fully active.
 
 ---
 
-<p align="center">
+<div align="center">
   <i>Cultivated with passion for the global agricultural community. 🌾</i><br/>
   <b>KisanSaathi Team</b>
-</p>
+</div>
