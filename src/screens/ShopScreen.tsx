@@ -93,28 +93,53 @@ export function ShopScreen() {
     if (!user) return;
     
     try {
-      const orderItems = cart.map(item => ({
-        productId: item.product.id,
-        productName: item.product.name,
-        quantity: item.quantity,
-        unit: item.product.unit,
-        price: item.product.price,
-        totalAmount: item.product.price * item.quantity
-      }));
-
-      await dbClient.add('orders', {
-        buyerId: user.uid,
-        buyerName: user.name || 'Farmer',
-        buyerPhone: phone,
-        deliveryAddress: address,
-        supplierId: 'agri-business-supplier', // Input supplier
-        items: orderItems,
-        totalAmount: cartTotal,
-        status: 'Pending',
-        isAgriInput: true,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString()
+      // Group cart items by supplier
+      const itemsBySupplier: {[key: string]: typeof cart} = {};
+      cart.forEach(item => {
+        // Fallback to a default if supplierId is missing (it shouldn't be with our new schema)
+        const supplier = item.product.supplierId || 'agri-business-supplier';
+        if (!itemsBySupplier[supplier]) itemsBySupplier[supplier] = [];
+        itemsBySupplier[supplier].push(item);
       });
+
+      for (const [supplierId, items] of Object.entries(itemsBySupplier)) {
+        const orderItems = items.map(item => ({
+          productId: item.product.id,
+          productName: item.product.name,
+          quantity: item.quantity,
+          unit: item.product.unit,
+          price: item.product.price,
+          totalAmount: item.product.price * item.quantity
+        }));
+        
+        const subTotalAmount = orderItems.reduce((sum, item) => sum + item.totalAmount, 0);
+
+        await dbClient.add('orders', {
+          buyerId: user.uid,
+          buyerName: user.name || 'Farmer',
+          buyerPhone: phone,
+          deliveryAddress: address,
+          supplierId: supplierId,
+          items: orderItems,
+          totalAmount: subTotalAmount,
+          status: 'Pending',
+          paymentStatus: 'Pending',
+          isAgriInput: true,
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString()
+        });
+
+        // Decrement product quantity
+        for (const item of items) {
+          if (item.product.quantity !== undefined) {
+            const newQuantity = Math.max(0, item.product.quantity - item.quantity);
+            await dbClient.update('products', item.product.id, {
+              quantity: newQuantity,
+              status: newQuantity === 0 ? 'Out of Stock' : 'Listed'
+            });
+          }
+        }
+      }
 
       setCart([]);
       setShowCheckout(false);
