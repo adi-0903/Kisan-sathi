@@ -10,9 +10,9 @@ interface MockUser {
 let mockCurrentUser: MockUser | null = null;
 const authListeners: Array<(user: MockUser | null) => void> = [];
 
-// Recover user session from sessionStorage on load
+// Recover user session from localStorage on load
 try {
-  const localSession = sessionStorage.getItem('ks_session_user');
+  const localSession = localStorage.getItem('ks_session_user');
   if (localSession) {
     const parsed = JSON.parse(localSession);
     mockCurrentUser = {
