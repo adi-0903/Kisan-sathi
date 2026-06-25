@@ -30,6 +30,8 @@ export function ShopScreen() {
   
   const [cart, setCart] = useState<{product: Product, quantity: number}[]>([]);
   const [showCheckout, setShowCheckout] = useState(false);
+  const [showOrders, setShowOrders] = useState(false);
+  const [orders, setOrders] = useState<any[]>([]);
   const [address, setAddress] = useState(user?.village || '');
   const [phone, setPhone] = useState(user?.phone || '');
   const [notification, setNotification] = useState<string | null>(null);
@@ -46,6 +48,18 @@ export function ShopScreen() {
     });
     return () => unsub();
   }, []);
+
+  useEffect(() => {
+    if (user && showOrders) {
+      const unsub = dbClient.subscribe('orders', [
+        { field: 'buyerId', op: '==', value: user.uid },
+        { field: 'isAgriInput', op: '==', value: true }
+      ], (items) => {
+        setOrders(items);
+      });
+      return () => unsub();
+    }
+  }, [user, showOrders]);
 
   const filteredProducts = products.filter(p => {
     const matchesCategory = activeCategory === 'All' || p.category === activeCategory;
@@ -180,17 +194,25 @@ export function ShopScreen() {
             </button>
             <h1 className="text-2xl font-bold text-gray-800 dark:text-gray-100">{t('shop_title', 'Agri Input Store')}</h1>
           </div>
-          <button 
-            onClick={() => { if (cartCount > 0) setShowCheckout(true); }}
-            className="relative p-2 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-full transition-colors"
-          >
+          <div className="flex items-center space-x-1">
+            <button 
+              onClick={() => setShowOrders(true)}
+              className="p-2 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-full transition-colors"
+            >
+              <Package size={24} />
+            </button>
+            <button 
+              onClick={() => { if (cartCount > 0) setShowCheckout(true); }}
+              className="relative p-2 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-full transition-colors"
+            >
             <ShoppingCart size={24} />
             {cartCount > 0 && (
               <span className="absolute top-0 right-0 bg-secondary text-white text-xs font-bold w-5 h-5 flex items-center justify-center rounded-full border-2 border-white dark:border-gray-800">
                 {cartCount}
               </span>
             )}
-          </button>
+            </button>
+          </div>
         </div>
 
         <div className="relative mb-4">
@@ -367,6 +389,62 @@ export function ShopScreen() {
             >
               Confirm Purchase • ₹{cartTotal}
             </button>
+          </motion.div>
+        </div>
+      )}
+
+      {/* Orders History Modal */}
+      {showOrders && (
+        <div className="fixed inset-0 bg-black/60 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4">
+          <motion.div 
+            initial={{ y: '100%' }}
+            animate={{ y: 0 }}
+            className="bg-white dark:bg-gray-800 w-full max-w-md rounded-t-[32px] sm:rounded-3xl p-5 pb-8 overflow-y-auto max-h-[90vh] shadow-2xl relative border-t-4 border-emerald-500"
+          >
+            <div className="flex justify-between items-center mb-6">
+              <h2 className="text-lg font-black text-gray-800 dark:text-white">My Orders</h2>
+              <button onClick={() => setShowOrders(false)} className="text-gray-400 dark:text-gray-500 font-extrabold hover:text-gray-700 dark:hover:text-gray-300 text-sm bg-gray-50 dark:bg-gray-700 px-3 py-1.5 rounded-xl border border-gray-200 dark:border-gray-600">Close</button>
+            </div>
+            
+            <div className="space-y-4">
+              {orders.length === 0 ? (
+                <div className="text-center py-10 text-gray-500 dark:text-gray-400 font-medium">No orders placed yet.</div>
+              ) : (
+                orders.map(o => (
+                  <div key={o.id} className="bg-gray-50 dark:bg-gray-700/50 p-4 rounded-2xl border border-gray-100 dark:border-gray-600">
+                    <div className="flex justify-between items-start mb-2">
+                      <div>
+                        <div className="text-[10px] font-black text-gray-400 dark:text-gray-500">ORDER NO. #{o.id?.slice(0,8).toUpperCase()}</div>
+                        <div className="text-sm font-bold text-gray-800 dark:text-gray-200 mt-0.5">₹{o.totalAmount}</div>
+                      </div>
+                      <div className="text-right flex flex-col items-end">
+                        <div className={`text-[10px] px-2 py-1 rounded font-bold mb-1 border ${
+                          o.status === 'Delivered' ? 'bg-emerald-100 text-emerald-700 border-emerald-200' : 
+                          o.status === 'Dispatched' ? 'bg-blue-100 text-blue-700 border-blue-200' :
+                          o.status === 'Accepted' ? 'bg-yellow-100 text-yellow-700 border-yellow-200' :
+                          'bg-gray-100 text-gray-700 border-gray-200 dark:bg-gray-800 dark:border-gray-700 dark:text-gray-300'
+                        }`}>
+                          {o.status || 'Pending'}
+                        </div>
+                        <div className={`text-[10px] px-2 py-1 rounded font-bold border ${
+                          o.paymentStatus === 'Done' ? 'bg-green-100 text-green-700 border-green-200' : 'bg-yellow-100 text-yellow-700 border-yellow-200'
+                        }`}>
+                          Payment: {o.paymentStatus || 'Pending'}
+                        </div>
+                      </div>
+                    </div>
+                    <div className="space-y-1 mt-3 pt-3 border-t border-gray-200 dark:border-gray-600">
+                      {o.items?.map((item: any, idx: number) => (
+                        <div key={idx} className="flex justify-between text-xs text-gray-600 dark:text-gray-300">
+                          <span>{item.productName} (x{item.quantity})</span>
+                          <span className="font-bold text-gray-800 dark:text-gray-200">₹{item.price * item.quantity}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
           </motion.div>
         </div>
       )}
