@@ -36,6 +36,7 @@ import { MachineryScreen } from "./screens/MachineryScreen";
 import { LaborScreen } from "./screens/LaborScreen";
 import { D2CScreen } from "./screens/D2CScreen";
 import { ConsumerHomeScreen } from "./screens/ConsumerHomeScreen";
+import { FarmerOrdersScreen } from "./screens/FarmerOrdersScreen";
 
 import { SplashScreen } from './screens/SplashScreen';
 import { syncLocalData as syncLocalDataToFirestore } from './lib/dbClient';
@@ -224,6 +225,7 @@ function InnerApp() {
           <Route path="/soil-health" element={<PageWrapper><ProtectedFarmerRoute><SoilHealthScreen /></ProtectedFarmerRoute></PageWrapper>} />
           <Route path="/schemes" element={<PageWrapper><ProtectedFarmerRoute><SchemesScreen /></ProtectedFarmerRoute></PageWrapper>} />
           <Route path="/shop" element={<PageWrapper><ProtectedFarmerRoute><ShopScreen /></ProtectedFarmerRoute></PageWrapper>} />
+          <Route path="/agri-orders" element={<PageWrapper><ProtectedFarmerRoute><FarmerOrdersScreen /></ProtectedFarmerRoute></PageWrapper>} />
           <Route path="/logistics" element={<PageWrapper><ProtectedFarmerRoute><LogisticsScreen /></ProtectedFarmerRoute></PageWrapper>} />
           <Route path="/machinery" element={<PageWrapper><ProtectedFarmerRoute><MachineryScreen /></ProtectedFarmerRoute></PageWrapper>} />
           <Route path="/labor" element={<PageWrapper><ProtectedFarmerRoute><LaborScreen /></ProtectedFarmerRoute></PageWrapper>} />
