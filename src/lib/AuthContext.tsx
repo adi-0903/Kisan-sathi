@@ -54,7 +54,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const [pendingVerificationState, setPendingVerificationState] = useState<PendingVerification>(() => {
-    const pendingJson = sessionStorage.getItem('ks_pending_verification');
+    const pendingJson = localStorage.getItem('ks_pending_verification');
     if (pendingJson) {
       try {
         return JSON.parse(pendingJson);
@@ -64,12 +64,21 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   });
 
   useEffect(() => {
-    // 1. Recover standard session immediately from sessionStorage for ultra-fast loading & offline fallback
+    // 1. Recover standard session immediately from localStorage for ultra-fast loading & offline fallback
     try {
-      const localSession = sessionStorage.getItem('ks_session_user');
+      const localSession = localStorage.getItem('ks_session_user');
+      const sessionExpiry = localStorage.getItem('ks_session_expiry');
+      
       if (localSession) {
-        setUser(JSON.parse(localSession));
-        setLoading(false);
+        if (sessionExpiry && Date.now() > parseInt(sessionExpiry)) {
+          // Session expired after 7 days
+          localStorage.removeItem('ks_session_user');
+          localStorage.removeItem('ks_session_expiry');
+          localStorage.removeItem('ks_is_local_only');
+        } else {
+          setUser(JSON.parse(localSession));
+          setLoading(false);
+        }
       }
     } catch (e) {
       console.warn("Failed to retrieve local user session", e);
@@ -83,16 +92,18 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
           if (docSnap.exists && docSnap.data) {
             const userData = docSnap.data as User;
             setUser(userData);
-            sessionStorage.setItem('ks_session_user', JSON.stringify(userData));
+            localStorage.setItem('ks_session_user', JSON.stringify(userData));
+            localStorage.setItem('ks_session_expiry', (Date.now() + 7 * 24 * 60 * 60 * 1000).toString());
           }
         } catch (dbErr) {
           console.warn("User data fetch failed, sticking to session storage if available", dbErr);
         }
       } else {
-        const isLocalOnly = sessionStorage.getItem('ks_is_local_only');
+        const isLocalOnly = localStorage.getItem('ks_is_local_only');
         if (!isLocalOnly) {
           setUser(null);
-          sessionStorage.removeItem('ks_session_user');
+          localStorage.removeItem('ks_session_user');
+          localStorage.removeItem('ks_session_expiry');
         }
       }
       setLoading(false);
@@ -103,9 +114,9 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const setPendingVerification = (data: PendingVerification) => {
     setPendingVerificationState(data);
     if (data) {
-      sessionStorage.setItem('ks_pending_verification', JSON.stringify(data));
+      localStorage.setItem('ks_pending_verification', JSON.stringify(data));
     } else {
-      sessionStorage.removeItem('ks_pending_verification');
+      localStorage.removeItem('ks_pending_verification');
     }
   };
 
@@ -150,8 +161,9 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         if (foundUser && userData) {
           if (userData.pin === pin || getFakePassword(userData.pin || '') === getFakePassword(pin)) {
             setUser(userData);
-            sessionStorage.setItem('ks_session_user', JSON.stringify(userData));
-            sessionStorage.setItem('ks_is_local_only', 'true');
+            localStorage.setItem('ks_session_user', JSON.stringify(userData));
+            localStorage.setItem('ks_session_expiry', (Date.now() + 7 * 24 * 60 * 60 * 1000).toString());
+            localStorage.setItem('ks_is_local_only', 'true');
             return true;
           } else {
              throw new Error("Invalid Security Code. Please try again.");
@@ -193,8 +205,9 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         await withTimeout(authClient.updateProfile({ displayName: data.name }));
         
         setUser(authenticatedUser);
-        sessionStorage.setItem('ks_session_user', JSON.stringify(authenticatedUser));
-        sessionStorage.removeItem('ks_is_local_only');
+        localStorage.setItem('ks_session_user', JSON.stringify(authenticatedUser));
+        localStorage.setItem('ks_session_expiry', (Date.now() + 7 * 24 * 60 * 60 * 1000).toString());
+        localStorage.removeItem('ks_is_local_only');
         setPendingVerification(null);
         return;
       }
@@ -220,8 +233,9 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         await withTimeout(authClient.updateProfile({ displayName: data.name }));
         
         setUser(authenticatedUser);
-        sessionStorage.setItem('ks_session_user', JSON.stringify(authenticatedUser));
-        sessionStorage.removeItem('ks_is_local_only');
+        localStorage.setItem('ks_session_user', JSON.stringify(authenticatedUser));
+        localStorage.setItem('ks_session_expiry', (Date.now() + 7 * 24 * 60 * 60 * 1000).toString());
+        localStorage.removeItem('ks_is_local_only');
       } catch (authErr: any) {
         console.warn("Auth create user failed, completed registration in Local mode:", authErr.message);
         const localUid = 'user_' + cleanedPhone;
@@ -247,8 +261,9 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         }
         
         setUser(newUser);
-        sessionStorage.setItem('ks_session_user', JSON.stringify(newUser));
-        sessionStorage.setItem('ks_is_local_only', 'true');
+        localStorage.setItem('ks_session_user', JSON.stringify(newUser));
+        localStorage.setItem('ks_session_expiry', (Date.now() + 7 * 24 * 60 * 60 * 1000).toString());
+        localStorage.setItem('ks_is_local_only', 'true');
       }
       setPendingVerification(null);
     } catch (e: any) {
@@ -272,8 +287,9 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     }
     setUser(null);
     setPendingVerification(null);
-    sessionStorage.removeItem('ks_session_user');
-    sessionStorage.removeItem('ks_is_local_only');
+    localStorage.removeItem('ks_session_user');
+    localStorage.removeItem('ks_session_expiry');
+    localStorage.removeItem('ks_is_local_only');
   };
 
   const updateUser = async (updates: Partial<User>) => {
@@ -287,7 +303,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     }
     
     setUser(updatedUser);
-    sessionStorage.setItem('ks_session_user', JSON.stringify(updatedUser));
+    localStorage.setItem('ks_session_user', JSON.stringify(updatedUser));
   };
 
   return (
