@@ -3,7 +3,7 @@ import { dbClient } from '../lib/dbClient';
 import { useAuth, User } from '../lib/AuthContext';
 import { useSubscription } from '../lib/subscription';
 import { useNavigate } from 'react-router-dom';
-import { ShoppingBag, MapPin, Package, Clock, CheckCircle, Database, Search, Filter, ShieldCheck, Heart, User as UserIcon, HelpCircle, Users, Download } from 'lucide-react';
+import { ShoppingBag, MapPin, Package, Clock, CheckCircle, Database, Search, Filter, ShieldCheck, Heart, User as UserIcon, HelpCircle, Users, Download, Plus, X, Sprout, TestTube, Bug, Wheat, Leaf, Store } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
@@ -13,7 +13,7 @@ export function ConsumerHomeScreen() {
   const { user } = useAuth();
   const navigate = useNavigate();
   const { isExpired, daysLeft } = useSubscription();
-  const [activeTab, setActiveTab] = useState<'shop' | 'orders'>('shop');
+  const [activeTab, setActiveTab] = useState<'shop' | 'orders' | 'agri_inputs'>('shop');
   const [products, setProducts] = useState<any[]>([]);
   const [orders, setOrders] = useState<any[]>([]);
   const [cart, setCart] = useState<{product: any, quantity: number}[]>([]);
@@ -33,6 +33,19 @@ export function ConsumerHomeScreen() {
   // Custom dialog notifications
   const [notification, setNotification] = useState<{message: string, isError?: boolean} | null>(null);
 
+  // Agri Inputs Management
+  const [agriInputs, setAgriInputs] = useState<any[]>([]);
+  const [showAddModal, setShowAddModal] = useState(false);
+  const [editingInput, setEditingInput] = useState<any>(null);
+  const [newInput, setNewInput] = useState<any>({
+    name: '',
+    category: 'Seeds',
+    price: 0,
+    unit: 'kg',
+    quantity: 0,
+    status: 'Listed'
+  });
+
   const showNotification = (msg: string, isErr = false) => {
     setNotification({ message: msg, isError: isErr });
     setTimeout(() => {
@@ -43,12 +56,27 @@ export function ConsumerHomeScreen() {
   // Fetch products
   useEffect(() => {
     if (activeTab === 'shop') {
-      const unsub = dbClient.subscribe('products', [{ field: 'status', op: '==', value: 'Listed' }], (items) => {
-        setProducts(items);
+      const unsub = dbClient.subscribe('products', [
+        { field: 'status', op: '==', value: 'Listed' },
+        { field: 'isAgriInput', op: '!=', value: true } // Don't show agri inputs in consumer shop
+      ], (items) => {
+        setProducts(items.filter(i => !i.isAgriInput));
       });
       return () => unsub();
     }
   }, [activeTab]);
+
+  useEffect(() => {
+    if (user && activeTab === 'agri_inputs') {
+      const unsub = dbClient.subscribe('products', [
+        { field: 'supplierId', op: '==', value: user.uid },
+        { field: 'isAgriInput', op: '==', value: true }
+      ], (items) => {
+        setAgriInputs(items);
+      });
+      return () => unsub();
+    }
+  }, [user, activeTab]);
 
   // Fetch orders
   useEffect(() => {
@@ -205,6 +233,72 @@ export function ConsumerHomeScreen() {
     }
   };
 
+  // Agri Input Handlers
+  const handleSaveAgriInput = async () => {
+    if (!newInput.name || !newInput.price || newInput.quantity === undefined || !user) return;
+    
+    try {
+      if (editingInput) {
+        await dbClient.update('products', editingInput.id, {
+          name: newInput.name,
+          category: newInput.category || 'Seeds',
+          price: Number(newInput.price),
+          unit: newInput.unit || 'kg',
+          quantity: Number(newInput.quantity),
+        });
+      } else {
+        await dbClient.add('products', {
+          supplierId: user.uid,
+          name: newInput.name,
+          category: newInput.category || 'Seeds',
+          price: Number(newInput.price),
+          unit: newInput.unit || 'kg',
+          quantity: Number(newInput.quantity),
+          isAgriInput: true,
+          status: 'Listed',
+          createdAt: new Date().toISOString()
+        });
+      }
+
+      setShowAddModal(false);
+      setEditingInput(null);
+      setNewInput({
+        name: '',
+        category: 'Seeds',
+        price: 0,
+        unit: 'kg',
+        quantity: 0,
+        status: 'Listed'
+      });
+      showNotification('Agri input saved successfully');
+    } catch (e) {
+      console.error(e);
+      showNotification('Error saving agri input', true);
+    }
+  };
+
+  const handleDeleteAgriInput = async (id: string) => {
+    if (window.confirm('Are you sure you want to delete this listing?')) {
+      try {
+        await dbClient.delete('products', id);
+        showNotification('Listing deleted');
+      } catch (e) {
+        console.error(e);
+        showNotification('Error deleting listing', true);
+      }
+    }
+  };
+
+  const handleToggleAgriInputStock = async (p: any) => {
+    try {
+      await dbClient.update('products', p.id, {
+        status: p.status === 'Listed' ? 'Out of Stock' : 'Listed'
+      });
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
   // Filter products by search and category list
   const filteredProducts = products.filter(p => {
     const matchesSearch = p.name?.toLowerCase().includes(searchQuery.toLowerCase()) || 
@@ -356,6 +450,12 @@ export function ConsumerHomeScreen() {
               className={`flex-1 py-2.5 text-xs font-black rounded-xl transition-all ${activeTab === 'orders' ? 'bg-white text-emerald-900 shadow-md transform scale-[1.01]' : 'text-emerald-100 hover:text-white'}`}
             >
               My Orders ({orders.length})
+            </button>
+            <button 
+              onClick={() => setActiveTab('agri_inputs')}
+              className={`flex-1 py-2.5 text-xs font-black rounded-xl transition-all ${activeTab === 'agri_inputs' ? 'bg-white text-emerald-900 shadow-md transform scale-[1.01]' : 'text-emerald-100 hover:text-white'}`}
+            >
+              Sell Agri Inputs
             </button>
           </div>
         </div>
@@ -585,6 +685,84 @@ export function ConsumerHomeScreen() {
             )}
           </div>
         )}
+
+        {activeTab === 'agri_inputs' && (
+          <div className="space-y-4">
+            <button 
+              onClick={() => {
+                setEditingInput(null);
+                setNewInput({
+                  name: '',
+                  category: 'Seeds',
+                  price: 0,
+                  unit: 'kg',
+                  quantity: 0,
+                  status: 'Listed'
+                });
+                setShowAddModal(true);
+              }}
+              className="w-full bg-emerald-50 text-emerald-600 border border-emerald-200 border-dashed rounded-xl p-4 flex items-center justify-center space-x-2 font-bold transition-colors hover:bg-emerald-100"
+            >
+              <Plus size={20} />
+              <span>Add New Agri Input</span>
+            </button>
+
+            {agriInputs.length === 0 ? (
+              <div className="text-center py-10 bg-white rounded-2xl border border-gray-100">
+                <Store size={40} className="mx-auto text-gray-300 mb-3" />
+                <h3 className="font-bold text-gray-800">No Agri Inputs Listed</h3>
+                <p className="text-sm text-gray-500 mt-1">List seeds, fertilizers or equipment to sell to farmers.</p>
+              </div>
+            ) : (
+              agriInputs.map(p => (
+                <div key={p.id} className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden flex">
+                  <div className="w-28 h-28 relative flex-shrink-0 bg-gray-50 flex items-center justify-center">
+                    {p.image ? (
+                      <img src={p.image} alt={p.name} className="w-full h-full object-cover p-2 rounded-2xl" />
+                    ) : (
+                      <div className="text-emerald-300">
+                        {p.category === 'Fertilizers' && <Package size={40} />}
+                        {p.category === 'Seeds' && <Leaf size={40} />}
+                        {p.category === 'Pesticides' && <Bug size={40} />}
+                        {p.category === 'Feed' && <Wheat size={40} />}
+                        {!['Fertilizers', 'Seeds', 'Pesticides', 'Feed'].includes(p.category) && <Sprout size={40} />}
+                      </div>
+                    )}
+                    <div className="absolute top-1 left-1 bg-black/60 text-white text-[10px] font-bold px-1.5 py-0.5 rounded">
+                      {p.status}
+                    </div>
+                  </div>
+                  <div className="p-3 flex-1 flex flex-col justify-between">
+                    <div>
+                      <h3 className="font-bold text-gray-800 leading-tight">{p.name}</h3>
+                      <p className="text-xs text-gray-500 mt-1">{p.category} &bull; {p.quantity} {p.unit} left</p>
+                    </div>
+                    <div className="flex items-center justify-between mt-2">
+                      <div className="text-lg font-bold text-emerald-600">
+                        ₹{p.price}<span className="text-sm text-gray-500 font-normal">/{p.unit}</span>
+                      </div>
+                      <div className="flex gap-2 flex-wrap justify-end">
+                        <button onClick={() => handleToggleAgriInputStock(p)} className={`px-2 py-1 text-[10px] font-bold rounded-lg ${p.status === 'Listed' ? 'bg-orange-100 text-orange-700' : 'bg-emerald-100 text-emerald-700'}`}>
+                          {p.status === 'Listed' ? 'Out of Stock' : 'List'}
+                        </button>
+                        <button onClick={() => {
+                          setEditingInput(p);
+                          setNewInput({ name: p.name, category: p.category, price: p.price, unit: p.unit, quantity: p.quantity, status: p.status });
+                          setShowAddModal(true);
+                        }} className="px-2 py-1 bg-gray-100 text-gray-700 text-[10px] font-bold rounded-lg hover:bg-gray-200">
+                          Edit
+                        </button>
+                        <button onClick={() => handleDeleteAgriInput(p.id)} className="px-2 py-1 bg-red-100 text-red-700 text-[10px] font-bold rounded-lg hover:bg-red-200">
+                          Delete
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+        )}
       </main>
 
       {/* Cart FAB */}
@@ -703,7 +881,103 @@ export function ConsumerHomeScreen() {
           </motion.div>
         </div>
       )}
+      <AnimatePresence>
+        {showAddModal && (
+          <div className="fixed inset-0 z-[70] flex items-end justify-center sm:items-center bg-black/60 backdrop-blur-sm p-4">
+            <motion.div 
+              initial={{ opacity: 0, y: 100 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: 100 }}
+              className="bg-white w-full max-w-md rounded-3xl overflow-hidden shadow-xl"
+            >
+              <div className="flex justify-between items-center p-4 border-b border-gray-100">
+                <h3 className="font-bold text-lg text-gray-800">{editingInput ? 'Edit Agri Input' : 'New Agri Input'}</h3>
+                <button onClick={() => setShowAddModal(false)} className="p-2 bg-gray-100 rounded-full text-gray-500 hover:text-gray-800">
+                  <X size={20} />
+                </button>
+              </div>
+              
+              <form onSubmit={(e) => { e.preventDefault(); handleSaveAgriInput(); }} className="p-5 space-y-4 max-h-[70vh] overflow-y-auto">
+                <div>
+                  <label className="block text-xs font-bold text-gray-500 mb-1">Product Name</label>
+                  <input 
+                    type="text" 
+                    value={newInput.name}
+                    onChange={(e) => setNewInput({...newInput, name: e.target.value})}
+                    placeholder="e.g. Organic Urea (50kg)"
+                    className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-emerald-500 outline-none"
+                  />
+                </div>
+                
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-xs font-bold text-gray-500 mb-1">Category</label>
+                    <select 
+                      value={newInput.category}
+                      onChange={(e) => setNewInput({...newInput, category: e.target.value})}
+                      className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-emerald-500 outline-none"
+                    >
+                      <option>Seeds</option>
+                      <option>Fertilizers</option>
+                      <option>Pesticides</option>
+                      <option>Feed</option>
+                      <option>Other</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-gray-500 mb-1">Unit</label>
+                    <select 
+                      value={newInput.unit}
+                      onChange={(e) => setNewInput({...newInput, unit: e.target.value})}
+                      className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-emerald-500 outline-none"
+                    >
+                      <option>kg</option>
+                      <option>gram</option>
+                      <option>liter</option>
+                      <option>ml</option>
+                      <option>bag</option>
+                      <option>packet</option>
+                    </select>
+                  </div>
+                </div>
 
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-xs font-bold text-gray-500 mb-1">Price (₹)</label>
+                    <input 
+                      type="number" 
+                      value={newInput.price || ''}
+                      onChange={(e) => setNewInput({...newInput, price: Number(e.target.value)})}
+                      placeholder="e.g. 500"
+                      className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-emerald-500 outline-none"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-gray-500 mb-1">Quantity</label>
+                    <input 
+                      type="number" 
+                      value={newInput.quantity || ''}
+                      onChange={(e) => setNewInput({...newInput, quantity: Number(e.target.value)})}
+                      placeholder="e.g. 10"
+                      className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-emerald-500 outline-none"
+                    />
+                  </div>
+                </div>
+
+                <div className="pt-4 mt-2 border-t border-gray-100">
+                  <button 
+                    type="submit"
+                    disabled={!newInput.name || newInput.price === undefined || newInput.price === 0 || newInput.quantity === undefined || newInput.quantity === 0}
+                    className="w-full bg-emerald-600 text-white font-bold py-3.5 rounded-xl shadow-lg hover:shadow-xl transition-all disabled:opacity-50"
+                  >
+                    {editingInput ? 'Update Agri Input' : 'List Agri Input'}
+                  </button>
+                </div>
+              </form>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

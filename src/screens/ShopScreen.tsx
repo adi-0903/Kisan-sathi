@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
-import { ChevronLeft, Search, ShoppingCart, Star, Package, Sprout, TestTube, Bug, Wheat, MapPin, CheckCircle, X } from 'lucide-react';
+import { ShoppingCart, Search, Filter, Plus as PlusIcon, CheckCircle, Package, Leaf, Bug, Wheat, Star, ChevronLeft, Sprout, TestTube, MapPin, X } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'motion/react';
 import { useAuth } from '../lib/AuthContext';
@@ -17,16 +17,8 @@ interface Product {
   reviews: number;
   icon: React.ReactNode;
   unit: string;
+  image?: string;
 }
-
-const MOCK_PRODUCTS: Product[] = [
-  { id: 'input-1', name: 'Premium Wheat Seeds HD-3086', category: 'Seeds', price: 450, rating: 4.8, reviews: 124, unit: 'kg', icon: <Sprout size={40} className="text-emerald-500" /> },
-  { id: 'input-2', name: 'Organic Urea Fertilizer (50kg)', category: 'Fertilizers', price: 266, rating: 4.5, reviews: 89, unit: 'bag', icon: <TestTube size={40} className="text-amber-500" /> },
-  { id: 'input-3', name: 'Neem Oil Biopesticide (1L)', category: 'Pesticides', price: 320, rating: 4.2, reviews: 56, unit: 'liter', icon: <Bug size={40} className="text-red-500" /> },
-  { id: 'input-4', name: 'High-Yield Rice Seeds (10kg)', category: 'Seeds', price: 850, rating: 4.9, reviews: 210, unit: 'bag', icon: <Sprout size={40} className="text-emerald-500" /> },
-  { id: 'input-5', name: 'NPK 19:19:19 Water Soluble (1kg)', category: 'Fertilizers', price: 180, rating: 4.6, reviews: 75, unit: 'kg', icon: <TestTube size={40} className="text-amber-500" /> },
-  { id: 'input-6', name: 'Premium Cattle Feed Pellets (50kg)', category: 'Feed', price: 1200, rating: 4.7, reviews: 150, unit: 'bag', icon: <Wheat size={40} className="text-yellow-600" /> },
-];
 
 export function ShopScreen() {
   const { t } = useTranslation();
@@ -43,7 +35,19 @@ export function ShopScreen() {
   const [notification, setNotification] = useState<string | null>(null);
   const timeoutRef = React.useRef<NodeJS.Timeout>();
 
-  const filteredProducts = MOCK_PRODUCTS.filter(p => {
+  const [products, setProducts] = useState<Product[]>([]);
+
+  useEffect(() => {
+    const unsub = dbClient.subscribe('products', [
+      { field: 'isAgriInput', op: '==', value: true },
+      { field: 'status', op: '==', value: 'Listed' }
+    ], (items) => {
+      setProducts(items as Product[]);
+    });
+    return () => unsub();
+  }, []);
+
+  const filteredProducts = products.filter(p => {
     const matchesCategory = activeCategory === 'All' || p.category === activeCategory;
     const matchesSearch = p.name.toLowerCase().includes(searchQuery.toLowerCase());
     return matchesCategory && matchesSearch;
@@ -196,35 +200,36 @@ export function ShopScreen() {
 
       <div className="flex-1 p-5">
         <div className="grid grid-cols-2 gap-4">
-          {filteredProducts.map((product, index) => (
+          {filteredProducts.map((p, index) => (
             <motion.div
-              key={product.id}
+              key={p.id}
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: index * 0.05 }}
               className="bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 rounded-2xl overflow-hidden shadow-sm hover:shadow-md transition-shadow flex flex-col"
             >
               <div className="bg-gray-100 dark:bg-gray-700/50 h-32 flex items-center justify-center p-4">
-                {product.icon}
+                {p.image ? <img src={p.image} className="h-full w-full object-cover" /> : p.icon}
               </div>
               <div className="p-4 flex-1 flex flex-col">
                 <span className="text-[10px] font-bold uppercase tracking-wider text-primary mb-1">
-                  {product.category}
+                  {p.category}
                 </span>
                 <h3 className="text-sm font-bold text-gray-800 dark:text-gray-100 leading-tight mb-2 flex-1">
-                  {product.name}
+                  {p.name}
                 </h3>
-                <div className="flex items-center space-x-1 mb-3">
-                  <Star size={14} className="text-amber-400 fill-current" />
-                  <span className="text-xs font-medium text-gray-700 dark:text-gray-300">{product.rating}</span>
-                  <span className="text-xs text-gray-400">({product.reviews})</span>
+                <div className="flex items-center gap-1 mb-2">
+                  <span className="text-yellow-500 flex items-center text-xs font-bold">
+                    ★ {p.rating || 'New'}
+                  </span>
+                  {p.reviews > 0 && <span className="text-[10px] text-gray-400">({p.reviews})</span>}
                 </div>
                 <div className="flex items-center justify-between mt-auto">
                   <span className="font-bold text-gray-900 dark:text-white">
-                    ₹{product.price}
+                    ₹{p.price}
                   </span>
                   <button 
-                    onClick={(e) => { e.preventDefault(); e.stopPropagation(); addToCart(product); }}
+                    onClick={(e) => { e.preventDefault(); e.stopPropagation(); addToCart(p); }}
                     className="p-2 bg-primary/10 hover:bg-primary text-primary hover:text-white rounded-xl transition-colors"
                   >
                     <PlusIcon size={18} />
@@ -280,7 +285,16 @@ export function ShopScreen() {
                 <div key={item.product.id} className="flex justify-between items-center bg-gray-50 dark:bg-gray-700/50 p-2.5 rounded-2xl border border-gray-100 dark:border-gray-600">
                     <div className="flex items-center gap-3">
                       <div className="w-12 h-12 rounded-xl bg-gray-100 dark:bg-gray-800 flex items-center justify-center border dark:border-gray-600">
-                        {item.product.icon}
+                        {item.product.image ? (
+                        <img src={item.product.image} alt={item.product.name} className="w-full h-full object-cover p-2 rounded-2xl" />
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center">
+                          {item.product.category === 'Fertilizers' && <Package size={40} className="text-emerald-600" />}
+                          {item.product.category === 'Seeds' && <Leaf size={40} className="text-green-500" />}
+                          {item.product.category === 'Pesticides' && <Bug size={40} className="text-red-500" />}
+                          {item.product.category === 'Feed' && <Wheat size={40} className="text-yellow-600" />}
+                        </div>
+                      )}
                       </div>
                       <div>
                         <div className="font-extrabold text-sm text-gray-800 dark:text-gray-200 leading-tight">{item.product.name}</div>
@@ -336,10 +350,4 @@ export function ShopScreen() {
   );
 }
 
-function PlusIcon({ size = 24 }: { size?: number }) {
-  return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M12 5v14M5 12h14" />
-    </svg>
-  );
-}
+

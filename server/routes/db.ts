@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { eq, and, like } from "drizzle-orm";
 import { db } from "../../src/db/index.js";
-import { appData } from "../../src/db/schema.js";
+import { appData, productsTable, ordersTable } from "../../src/db/schema.js";
 import { requireAuth } from "../middleware/auth";
 
 const router = Router();
@@ -14,6 +14,16 @@ router.get("/list", async (req, res) => {
     const { collection } = req.query;
     if (!collection || typeof collection !== "string") {
       return res.status(400).json({ error: "Collection name required" });
+    }
+
+    if (collection === "products") {
+      const rows = await db.select().from(productsTable);
+      return res.json(rows);
+    }
+
+    if (collection === "orders") {
+      const rows = await db.select().from(ordersTable);
+      return res.json(rows);
     }
 
     const rows = await db.select().from(appData).where(eq(appData.collection, collection));
@@ -73,6 +83,18 @@ router.get("/get", async (req, res) => {
       return res.status(400).json({ error: "Collection and docId required" });
     }
 
+    if (collection === "products") {
+      const [row] = await db.select().from(productsTable).where(eq(productsTable.id, docId));
+      if (!row) return res.status(404).json({ error: "Document not found" });
+      return res.json(row);
+    }
+
+    if (collection === "orders") {
+      const [row] = await db.select().from(ordersTable).where(eq(ordersTable.id, docId));
+      if (!row) return res.status(404).json({ error: "Document not found" });
+      return res.json(row);
+    }
+
     const [row] = await db.select().from(appData).where(eq(appData.id, `${collection}:${docId}`));
     if (!row) {
       return res.status(404).json({ error: "Document not found" });
@@ -97,6 +119,82 @@ router.post("/set", async (req, res) => {
     }
 
     const now = new Date().toISOString();
+
+    if (collection === "products") {
+      await db.insert(productsTable).values({
+        id: docId,
+        supplierId: data.supplierId,
+        name: data.name,
+        category: data.category,
+        price: data.price,
+        unit: data.unit,
+        quantity: data.quantity,
+        isAgriInput: data.isAgriInput,
+        status: data.status,
+        image: data.image,
+        description: data.description,
+        farmerName: data.farmerName,
+        certified: data.certified,
+        createdAt: data.createdAt || now,
+        updatedAt: now
+      }).onConflictDoUpdate({
+        target: productsTable.id,
+        set: {
+          supplierId: data.supplierId,
+          name: data.name,
+          category: data.category,
+          price: data.price,
+          unit: data.unit,
+          quantity: data.quantity,
+          isAgriInput: data.isAgriInput,
+          status: data.status,
+          image: data.image,
+          description: data.description,
+          farmerName: data.farmerName,
+          certified: data.certified,
+          updatedAt: now
+        }
+      });
+      return res.json({ success: true });
+    }
+
+    if (collection === "orders") {
+      await db.insert(ordersTable).values({
+        id: docId,
+        buyerId: data.buyerId,
+        buyerName: data.buyerName,
+        buyerPhone: data.buyerPhone,
+        deliveryAddress: data.deliveryAddress,
+        supplierId: data.supplierId,
+        totalAmount: data.totalAmount,
+        isGroupBuy: data.isGroupBuy,
+        societyCode: data.societyCode,
+        status: data.status,
+        paymentStatus: data.paymentStatus,
+        isAgriInput: data.isAgriInput,
+        items: data.items || [],
+        createdAt: data.createdAt || now,
+        updatedAt: now
+      }).onConflictDoUpdate({
+        target: ordersTable.id,
+        set: {
+          buyerName: data.buyerName,
+          buyerPhone: data.buyerPhone,
+          deliveryAddress: data.deliveryAddress,
+          supplierId: data.supplierId,
+          totalAmount: data.totalAmount,
+          isGroupBuy: data.isGroupBuy,
+          societyCode: data.societyCode,
+          status: data.status,
+          paymentStatus: data.paymentStatus,
+          isAgriInput: data.isAgriInput,
+          items: data.items || [],
+          updatedAt: now
+        }
+      });
+      return res.json({ success: true });
+    }
+
     await db.insert(appData).values({
       id: `${collection}:${docId}`,
       collection,
@@ -130,6 +228,48 @@ router.post("/add", async (req, res) => {
     const now = new Date().toISOString();
     const docData = { ...data, id: docId, uid: docId, createdAt: data.createdAt || now };
 
+    if (collection === "products") {
+      await db.insert(productsTable).values({
+        id: docId,
+        supplierId: data.supplierId,
+        name: data.name,
+        category: data.category,
+        price: data.price,
+        unit: data.unit,
+        quantity: data.quantity,
+        isAgriInput: data.isAgriInput,
+        status: data.status,
+        image: data.image,
+        description: data.description,
+        farmerName: data.farmerName,
+        certified: data.certified,
+        createdAt: docData.createdAt,
+        updatedAt: now
+      });
+      return res.json({ success: true, id: docId });
+    }
+
+    if (collection === "orders") {
+      await db.insert(ordersTable).values({
+        id: docId,
+        buyerId: data.buyerId,
+        buyerName: data.buyerName,
+        buyerPhone: data.buyerPhone,
+        deliveryAddress: data.deliveryAddress,
+        supplierId: data.supplierId,
+        totalAmount: data.totalAmount,
+        isGroupBuy: data.isGroupBuy,
+        societyCode: data.societyCode,
+        status: data.status,
+        paymentStatus: data.paymentStatus,
+        isAgriInput: data.isAgriInput,
+        items: data.items || [],
+        createdAt: docData.createdAt,
+        updatedAt: now
+      });
+      return res.json({ success: true, id: docId });
+    }
+
     await db.insert(appData).values({
       id: `${collection}:${docId}`,
       collection,
@@ -153,6 +293,53 @@ router.post("/update", async (req, res) => {
       return res.status(400).json({ error: "Collection, docId and data are required" });
     }
 
+    const now = new Date().toISOString();
+
+    if (collection === "products") {
+      const [existing] = await db.select().from(productsTable).where(eq(productsTable.id, docId));
+      if (!existing) return res.status(404).json({ error: "Not found" });
+
+      const merged = { ...existing, ...data };
+      await db.update(productsTable).set({
+        supplierId: merged.supplierId,
+        name: merged.name,
+        category: merged.category,
+        price: merged.price,
+        unit: merged.unit,
+        quantity: merged.quantity,
+        isAgriInput: merged.isAgriInput,
+        status: merged.status,
+        image: merged.image,
+        description: merged.description,
+        farmerName: merged.farmerName,
+        certified: merged.certified,
+        updatedAt: now
+      }).where(eq(productsTable.id, docId));
+      return res.json({ success: true });
+    }
+
+    if (collection === "orders") {
+      const [existing] = await db.select().from(ordersTable).where(eq(ordersTable.id, docId));
+      if (!existing) return res.status(404).json({ error: "Not found" });
+
+      const merged = { ...existing, ...data };
+      await db.update(ordersTable).set({
+        buyerName: merged.buyerName,
+        buyerPhone: merged.buyerPhone,
+        deliveryAddress: merged.deliveryAddress,
+        supplierId: merged.supplierId,
+        totalAmount: merged.totalAmount,
+        isGroupBuy: merged.isGroupBuy,
+        societyCode: merged.societyCode,
+        status: merged.status,
+        paymentStatus: merged.paymentStatus,
+        isAgriInput: merged.isAgriInput,
+        items: merged.items,
+        updatedAt: now
+      }).where(eq(ordersTable.id, docId));
+      return res.json({ success: true });
+    }
+
     const [existing] = await db.select().from(appData).where(eq(appData.id, `${collection}:${docId}`));
     let mergedData = { ...data };
     if (existing) {
@@ -161,7 +348,6 @@ router.post("/update", async (req, res) => {
       } catch (_) {}
     }
 
-    const now = new Date().toISOString();
     await db.insert(appData).values({
       id: `${collection}:${docId}`,
       collection,
@@ -189,6 +375,16 @@ router.post("/delete", async (req, res) => {
     const { collection, docId } = req.body;
     if (!collection || !docId) {
       return res.status(400).json({ error: "Collection and docId are required" });
+    }
+
+    if (collection === "products") {
+      await db.delete(productsTable).where(eq(productsTable.id, docId));
+      return res.json({ success: true });
+    }
+
+    if (collection === "orders") {
+      await db.delete(ordersTable).where(eq(ordersTable.id, docId));
+      return res.json({ success: true });
     }
 
     await db.delete(appData).where(and(eq(appData.collection, collection), eq(appData.docId, docId)));
