@@ -474,11 +474,11 @@ export function ConsumerHomeScreen() {
 
       {/* Checkout Modal */}
       {showCheckout && (
-        <div className="fixed inset-0 z-50 bg-black/60 flex items-end sm:items-center justify-center sm:p-4 backdrop-blur-sm">
+        <div className="fixed inset-0 z-[60] bg-black/60 flex items-end sm:items-center justify-center sm:p-4 backdrop-blur-sm">
           <motion.div 
             initial={{ y: '100%' }}
             animate={{ y: 0 }}
-            className="bg-white w-full max-w-md rounded-t-[32px] sm:rounded-3xl p-5 overflow-y-auto max-h-[90vh] shadow-2xl relative border-t-4 border-emerald-600"
+            className="bg-white w-full max-w-md rounded-t-[32px] sm:rounded-3xl p-5 pb-8 overflow-y-auto max-h-[90vh] shadow-2xl relative border-t-4 border-emerald-600"
           >
             <div className="flex justify-between items-center mb-6">
               <h2 className="text-lg font-black text-gray-800">Checkout Basket</h2>
@@ -561,7 +561,7 @@ export function ConsumerHomeScreen() {
             <button 
               onClick={placeOrder}
               disabled={!address || !phone || cart.length === 0}
-              className="w-full bg-gradient-to-r from-emerald-700 to-emerald-600 text-white font-black rounded-2xl py-4.5 flex items-center justify-center gap-2 disabled:opacity-50 hover:shadow-lg transition-all"
+              className="w-full bg-gradient-to-r from-emerald-700 to-emerald-600 text-white font-black rounded-2xl py-4 flex items-center justify-center gap-2 disabled:opacity-50 hover:shadow-lg transition-all"
             >
               Confirm Purchase • ₹{cartTotal}
             </button>
