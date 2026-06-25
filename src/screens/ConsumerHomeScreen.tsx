@@ -6,6 +6,8 @@ import { useNavigate } from 'react-router-dom';
 import { ShoppingBag, MapPin, Package, Clock, CheckCircle, Database, Search, Filter, ShieldCheck, Heart, User as UserIcon, HelpCircle, Users, Download } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { jsPDF } from 'jspdf';
+import autoTable from 'jspdf-autotable';
+import { getLogoPngBase64 } from '../lib/pdfLogo';
 
 export function ConsumerHomeScreen() {
   const { user } = useAuth();
@@ -214,56 +216,99 @@ export function ConsumerHomeScreen() {
 
   const categories = ['All', 'Vegetables', 'Fruits', 'Grains', 'Dairy'];
 
-  const generateOrderBill = (order: any) => {
+  const generateOrderBill = async (order: any) => {
     const doc = new jsPDF();
-    doc.setFillColor(6, 78, 59); // emerald-900
-    doc.rect(0, 0, 210, 40, 'F');
-    
-    doc.setTextColor(255, 255, 255);
-    doc.setFontSize(24);
-    doc.setFont('helvetica', 'bold');
-    doc.text('KisanSaathi Fresh', 14, 25);
-    
-    doc.setFontSize(10);
-    doc.setFont('helvetica', 'normal');
-    doc.text('Order Invoice', 14, 34);
+    const logoUrl = await getLogoPngBase64();
 
-    doc.setTextColor(0, 0, 0);
+    // 1. Header with brand color
+    doc.setFillColor(5, 150, 105); // emerald-600
+    doc.rect(0, 0, 210, 45, 'F');
+    
+    // Add Logo
+    if (logoUrl) {
+      doc.addImage(logoUrl, 'PNG', 14, 10, 25, 25);
+      doc.setTextColor(255, 255, 255);
+      doc.setFontSize(26);
+      doc.setFont('helvetica', 'bold');
+      doc.text('KisanSaathi Fresh', 45, 24);
+      doc.setFontSize(11);
+      doc.setFont('helvetica', 'normal');
+      doc.text('Official Order Invoice', 45, 32);
+    } else {
+      doc.setTextColor(255, 255, 255);
+      doc.setFontSize(26);
+      doc.setFont('helvetica', 'bold');
+      doc.text('KisanSaathi Fresh', 14, 24);
+      doc.setFontSize(11);
+      doc.setFont('helvetica', 'normal');
+      doc.text('Official Order Invoice', 14, 32);
+    }
+
+    // 2. Order Metadata
+    doc.setTextColor(55, 65, 81); // gray-700
+    doc.setFontSize(10);
+    
+    doc.setFont('helvetica', 'bold');
+    doc.text('BILL TO:', 14, 60);
+    doc.setFont('helvetica', 'normal');
+    doc.text(order.buyerName || user?.name || 'Customer', 14, 66);
+    doc.text(order.deliveryAddress, 14, 72);
+    if (order.buyerPhone) doc.text(`Phone: ${order.buyerPhone}`, 14, 78);
+
+    doc.setFont('helvetica', 'bold');
+    doc.text('ORDER DETAILS:', 120, 60);
+    doc.setFont('helvetica', 'normal');
+    doc.text(`Order ID: #${order.id?.slice(0, 8).toUpperCase()}`, 120, 66);
+    doc.text(`Date: ${new Date(order.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}`, 120, 72);
+    
+    doc.setFont('helvetica', 'bold');
+    doc.text('Status:', 120, 78);
+    const isPaid = order.paymentStatus === 'Done';
+    doc.setTextColor(isPaid ? 22 : 202, isPaid ? 163 : 138, isPaid ? 74 : 4); // green-600 : yellow-600
+    doc.text(isPaid ? 'PAID' : 'PENDING', 135, 78);
+    
+    // 3. Table using autotable
+    const tableData = order.items.map((item: any) => [
+      item.productName,
+      `${item.quantity} ${item.unit || ''}`,
+      `Rs. ${item.price}`,
+      `Rs. ${item.totalAmount}`
+    ]);
+
+    autoTable(doc, {
+      startY: 90,
+      head: [['Item Description', 'Quantity', 'Unit Price', 'Total']],
+      body: tableData,
+      theme: 'grid',
+      headStyles: { fillColor: [5, 150, 105], textColor: [255, 255, 255], fontStyle: 'bold' },
+      styles: { fontSize: 10, cellPadding: 6, textColor: [55, 65, 81] },
+      alternateRowStyles: { fillColor: [249, 250, 251] },
+      margin: { top: 10, left: 14, right: 14 },
+    });
+
+    // 4. Totals summary
+    // @ts-ignore
+    const finalY = doc.lastAutoTable.finalY || 150;
+    
+    doc.setFillColor(243, 244, 246);
+    doc.rect(120, finalY + 10, 76, 25, 'F');
+    
+    doc.setTextColor(55, 65, 81);
     doc.setFontSize(12);
     doc.setFont('helvetica', 'bold');
-    doc.text(`Order ID: #${order.id?.slice(0,8).toUpperCase()}`, 14, 55);
-    doc.setFont('helvetica', 'normal');
-    doc.text(`Date: ${new Date(order.createdAt).toLocaleDateString()}`, 14, 62);
-    doc.text(`Delivery Address: ${order.deliveryAddress}`, 14, 69);
+    doc.text('Grand Total:', 125, finalY + 26);
     
-    doc.setFont('helvetica', 'bold');
-    doc.text(`Payment Status: ${order.paymentStatus === 'Done' ? 'PAID' : 'PENDING'}`, 140, 55);
-    
-    let y = 85;
-    doc.setFillColor(243, 244, 246);
-    doc.rect(14, y, 182, 10, 'F');
-    doc.setFontSize(10);
-    doc.setFont('helvetica', 'bold');
-    doc.text('Item', 18, y + 7);
-    doc.text('Qty', 120, y + 7);
-    doc.text('Total', 160, y + 7);
-    
-    y += 10;
-    doc.setFont('helvetica', 'normal');
-    order.items.forEach((item: any) => {
-      doc.text(item.productName, 18, y + 7);
-      doc.text(`${item.quantity} ${item.unit || ''}`, 120, y + 7);
-      doc.text(`Rs. ${item.totalAmount}`, 160, y + 7);
-      y += 10;
-    });
-    
-    y += 10;
-    doc.setFont('helvetica', 'bold');
-    doc.text('Grand Total:', 120, y);
-    doc.setTextColor(22, 163, 74);
-    doc.text(`Rs. ${order.totalAmount}`, 160, y);
+    doc.setTextColor(5, 150, 105);
+    doc.setFontSize(14);
+    doc.text(`Rs. ${order.totalAmount}`, 160, finalY + 26);
 
-    doc.save(`Invoice_${order.id?.slice(0,8)}.pdf`);
+    // 5. Footer
+    doc.setTextColor(156, 163, 175);
+    doc.setFontSize(9);
+    doc.setFont('helvetica', 'normal');
+    doc.text('Thank you for supporting local Indian farmers!', 105, 280, { align: 'center' });
+
+    doc.save(`KisanSaathi_Invoice_${order.id?.slice(0, 8)}.pdf`);
   };
 
   return (
