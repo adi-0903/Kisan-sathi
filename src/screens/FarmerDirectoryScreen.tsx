@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { db, collection, query, where, onSnapshot } from '../lib/firebase';
+import { dbClient } from '../lib/dbClient';
 import { MapPin, User as UserIcon, ShieldCheck, Leaf, Search, Star, MessageSquare } from 'lucide-react';
 import { motion } from 'framer-motion';
 
@@ -10,10 +10,8 @@ export function FarmerDirectoryScreen() {
   useEffect(() => {
     // For demo purposes, we fetch all users who are NOT consumers
     // In a real app, we might have a specific 'verified_farmers' collection or flag
-    const q = query(collection(db, 'users'), where('role', '!=', 'consumer'));
-    const unsub = onSnapshot(q, (snapshot) => {
-      const fetched = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-      setFarmers(fetched);
+    const unsub = dbClient.subscribe('users', [{ field: 'role', op: '!=', value: 'consumer' }], (items) => {
+      setFarmers(items);
     });
     return () => unsub();
   }, []);

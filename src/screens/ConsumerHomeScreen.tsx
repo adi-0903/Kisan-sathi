@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { db, collection, query, where, onSnapshot, addDoc, serverTimestamp, doc } from '../lib/firebase';
+import { dbClient } from '../lib/dbClient';
 import { useAuth, User } from '../lib/AuthContext';
 import { useSubscription } from '../lib/subscription';
 import { useNavigate } from 'react-router-dom';
@@ -40,11 +40,8 @@ export function ConsumerHomeScreen() {
   // Fetch products
   useEffect(() => {
     if (activeTab === 'shop') {
-      const q = query(collection(db, 'products'), where('status', '==', 'Listed'));
-      const unsub = onSnapshot(q, (snapshot) => {
-        setProducts(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
-      }, (err) => {
-        console.error("Error fetching products:", err);
+      const unsub = dbClient.subscribe('products', [{ field: 'status', op: '==', value: 'Listed' }], (items) => {
+        setProducts(items);
       });
       return () => unsub();
     }
@@ -53,11 +50,8 @@ export function ConsumerHomeScreen() {
   // Fetch orders
   useEffect(() => {
     if (user && activeTab === 'orders') {
-      const q = query(collection(db, 'orders'), where('buyerId', '==', user.uid));
-      const unsub = onSnapshot(q, (snapshot) => {
-        setOrders(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
-      }, (err) => {
-        console.error("Error fetching orders:", err);
+      const unsub = dbClient.subscribe('orders', [{ field: 'buyerId', op: '==', value: user.uid }], (items) => {
+        setOrders(items);
       });
       return () => unsub();
     }
@@ -66,9 +60,8 @@ export function ConsumerHomeScreen() {
   // Fetch subscriptions
   useEffect(() => {
     if (user) {
-      const q = query(collection(db, 'subscriptions'), where('consumerId', '==', user.uid));
-      const unsub = onSnapshot(q, (snapshot) => {
-        setMySubs(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+      const unsub = dbClient.subscribe('subscriptions', [{ field: 'consumerId', op: '==', value: user.uid }], (items) => {
+        setMySubs(items);
       });
       return () => unsub();
     }
@@ -163,7 +156,7 @@ export function ConsumerHomeScreen() {
         const subTotalAmount = orderItems.reduce((sum, item) => sum + item.totalAmount, 0);
         const totalAmount = isGroupBuy ? Math.floor(subTotalAmount * 0.85) : subTotalAmount;
 
-        await addDoc(collection(db, 'orders'), {
+        await dbClient.add('orders', {
           buyerId: user.uid,
           buyerName: user.name,
           buyerPhone: phone,
@@ -174,8 +167,8 @@ export function ConsumerHomeScreen() {
           isGroupBuy,
           societyCode: isGroupBuy ? societyCode : null,
           status: 'Pending',
-          createdAt: serverTimestamp(),
-          updatedAt: serverTimestamp()
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString()
         });
       }
       setCart([]);

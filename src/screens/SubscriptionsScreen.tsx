@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Package, Calendar, CheckCircle, Leaf, ShieldCheck, Truck, Milk, Heart, Activity, Sprout } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { db, collection, query, where, onSnapshot, addDoc, serverTimestamp } from '../lib/firebase';
+import { dbClient } from '../lib/dbClient';
 import { useAuth } from '../lib/AuthContext';
 import { useSyncState, useGlobalSyncState } from '../lib/store';
 
@@ -18,9 +18,8 @@ export function SubscriptionsScreen() {
 
   useEffect(() => {
     if (!user) return;
-    const q = query(collection(db, 'subscriptions'), where('consumerId', '==', user.uid));
-    const unsub = onSnapshot(q, (snapshot) => {
-      setMySubs(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+    const unsub = dbClient.subscribe('subscriptions', [{ field: 'consumerId', op: '==', value: user.uid }], (items) => {
+      setMySubs(items);
     });
     return () => unsub();
   }, [user]);
@@ -28,7 +27,7 @@ export function SubscriptionsScreen() {
   const handleSubscribe = async (plan: any) => {
     if (!user) return;
     try {
-      await addDoc(collection(db, 'subscriptions'), {
+      await dbClient.add('subscriptions', {
         consumerId: user.uid,
         planId: plan.id,
         title: plan.title,
@@ -37,7 +36,7 @@ export function SubscriptionsScreen() {
         status: 'Active',
         type: 'Plan',
         nextDelivery: new Date(Date.now() + 86400000 * 2).toISOString(), // 2 days from now
-        createdAt: serverTimestamp()
+        createdAt: new Date().toISOString()
       });
       alert('Successfully Subscribed!');
       setActiveTab('active');
@@ -50,7 +49,7 @@ export function SubscriptionsScreen() {
   const handleSponsor = async (asset: any, type: 'Crop' | 'Cow') => {
     if (!user) return;
     try {
-      await addDoc(collection(db, 'subscriptions'), {
+      await dbClient.add('subscriptions', {
         consumerId: user.uid,
         planId: asset.id,
         title: `Adopted ${type}: ${asset.name || asset.breed}`,
@@ -61,7 +60,7 @@ export function SubscriptionsScreen() {
         assetType: type,
         assetId: asset.id,
         nextDelivery: new Date(Date.now() + 86400000 * 7).toISOString(), // 7 days from now
-        createdAt: serverTimestamp()
+        createdAt: new Date().toISOString()
       });
       alert('Successfully Adopted!');
       setActiveTab('active');

@@ -38,7 +38,7 @@ import { D2CScreen } from "./screens/D2CScreen";
 import { ConsumerHomeScreen } from "./screens/ConsumerHomeScreen";
 
 import { SplashScreen } from './screens/SplashScreen';
-import { syncLocalDataToFirestore } from './lib/firebase';
+import { syncLocalData as syncLocalDataToFirestore } from './lib/dbClient';
 
 import { FarmerDirectoryScreen } from "./screens/FarmerDirectoryScreen";
 import { SubscriptionsScreen } from "./screens/SubscriptionsScreen";

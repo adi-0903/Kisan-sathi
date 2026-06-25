@@ -15,11 +15,14 @@ export function useSyncState<T>(key: string, initialValue: T): [T, (val: T) => v
 
   useEffect(() => {
     let isMounted = true;
+    const localKey = user ? `${user.uid}_${key}` : key;
     
     // 1. Instant load from IndexedDB cache
-    get(key).then((val) => {
+    get(localKey).then((val) => {
       if (isMounted && val !== undefined) {
         setState(val);
+      } else if (isMounted) {
+        setState(initialValue);
       }
     });
 
@@ -30,13 +33,19 @@ export function useSyncState<T>(key: string, initialValue: T): [T, (val: T) => v
         headers: { 'x-session-uid': user.uid }
       })
       .then(res => {
+        if (res.status === 404) {
+          if (isMounted) {
+            setState(initialValue);
+            set(localKey, initialValue); // Sync local cache
+          }
+          return null;
+        }
         if (res.ok) return res.json();
-        // If 404, it's fine, we'll initialize it when they save
       })
       .then(data => {
         if (isMounted && data && data.value !== undefined) {
           setState(data.value);
-          set(key, data.value); // Sync local cache
+          set(localKey, data.value); // Sync local cache
         }
       })
       .catch(e => console.warn(`NeonDB fetch failed for ${key}:`, e));
@@ -46,8 +55,9 @@ export function useSyncState<T>(key: string, initialValue: T): [T, (val: T) => v
   }, [key, user]);
 
   const setAndSave = (newValue: T) => {
+    const localKey = user ? `${user.uid}_${key}` : key;
     setState(newValue);
-    set(key, newValue);
+    set(localKey, newValue);
     
     if (user) {
       const docId = `${user.uid}_${key}`;

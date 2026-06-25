@@ -1,18 +1,5 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { 
-  auth, 
-  db, 
-  doc, 
-  getDoc, 
-  setDoc,
-  signInWithEmailAndPassword, 
-  createUserWithEmailAndPassword, 
-  signOut, 
-  onAuthStateChanged, 
-  updateProfile, 
-  setPersistence, 
-  browserSessionPersistence 
-} from './firebase';
+import { authClient, dbClient } from './dbClient';
 
 export type UserRole = 'consumer' | 'supplier';
 
@@ -77,11 +64,6 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   });
 
   useEffect(() => {
-    // Configure Firebase Auth to use session persistence (ends when tab/window is closed)
-    setPersistence(auth, browserSessionPersistence).catch((err) => {
-      console.warn("Failed to set Firebase Auth persistence to session", err);
-    });
-
     // 1. Recover standard session immediately from sessionStorage for ultra-fast loading & offline fallback
     try {
       const localSession = sessionStorage.getItem('ks_session_user');
@@ -93,19 +75,18 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       console.warn("Failed to retrieve local user session", e);
     }
 
-    // 2. Setup Firebase auth listener
-    const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
-      if (firebaseUser) {
+    // 2. Setup database auth listener
+    const unsubscribe = authClient.onAuthStateChanged(async (sessionUser) => {
+      if (sessionUser) {
         try {
-          const docRef = doc(db, 'users', firebaseUser.uid);
-          const docSnap = await getDoc(docRef);
-          if (docSnap.exists()) {
-            const userData = docSnap.data() as User;
+          const docSnap = await dbClient.get('users', sessionUser.uid);
+          if (docSnap.exists && docSnap.data) {
+            const userData = docSnap.data as User;
             setUser(userData);
             sessionStorage.setItem('ks_session_user', JSON.stringify(userData));
           }
         } catch (dbErr) {
-          console.warn("Firestore user fetch failed, sticking to session storage if available", dbErr);
+          console.warn("User data fetch failed, sticking to session storage if available", dbErr);
         }
       } else {
         const isLocalOnly = sessionStorage.getItem('ks_is_local_only');
@@ -135,12 +116,11 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     try {
       const cleanedPhone = phone.replace(/\D/g, '');
       const email = getFakeEmail(cleanedPhone);
-      // Pass raw pin to signInWithEmailAndPassword
       try {
-        await withTimeout(signInWithEmailAndPassword(auth, email, pin));
+        await withTimeout(authClient.signIn(email, pin));
         return true;
       } catch (authErr: any) {
-        console.warn("Firebase Auth sign-in failed, checking safe local fallback:", authErr.message);
+        console.warn("Auth sign-in failed, checking safe local fallback:", authErr.message);
         
         if (authErr.message === 'Invalid PIN') {
           throw new Error("Invalid Security Code. Please try again.");
@@ -150,12 +130,9 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
           throw new Error("Connection timed out. Please try again.");
         }
         
-        // Let's implement local validation using users collection (this works offline/local-first as well)
         let userData: any = null;
         let foundUser = false;
 
-        // Skip getDoc because backend blocks unauthenticated user fetches now
-        // Check if we can find a user in our resilient local storage ks_db_users by matching phone numbers
         const localUsersJson = localStorage.getItem('ks_db_users');
         if (localUsersJson) {
           try {
@@ -171,7 +148,6 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         }
         
         if (foundUser && userData) {
-          // Validate stored pin 
           if (userData.pin === pin || getFakePassword(userData.pin || '') === getFakePassword(pin)) {
             setUser(userData);
             sessionStorage.setItem('ks_session_user', JSON.stringify(userData));
@@ -196,12 +172,12 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     const password = getFakePassword(data.pin);
 
     try {
-      // 1. If we are already authenticated in Firebase (via real Phone Auth OTP)
-      if (auth.currentUser && data.uid === auth.currentUser.uid) {
+      const currentUser = authClient.getCurrentUser();
+      if (currentUser && data.uid === currentUser.uid) {
         const authenticatedUser = { 
-          uid: auth.currentUser.uid,
+          uid: currentUser.uid,
           name: data.name,
-          email: auth.currentUser.email || email,
+          email: currentUser.email || email,
           role: data.role || 'supplier',
           phone: data.phone,
           village: data.village,
@@ -213,8 +189,8 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
           landSize: data.landSize
         };
         
-        await setDoc(doc(db, 'users', auth.currentUser.uid), authenticatedUser);
-        await withTimeout(updateProfile(auth.currentUser, { displayName: data.name }));
+        await dbClient.set('users', currentUser.uid, authenticatedUser);
+        await withTimeout(authClient.updateProfile({ displayName: data.name }));
         
         setUser(authenticatedUser);
         sessionStorage.setItem('ks_session_user', JSON.stringify(authenticatedUser));
@@ -223,9 +199,8 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         return;
       }
 
-      // 2. Otherwise fall back to the standard flow
       try {
-        const result = await withTimeout(createUserWithEmailAndPassword(auth, email, password));
+        const result = await withTimeout(authClient.signUp(email, password));
         const authenticatedUser = { 
           uid: result.user.uid,
           name: data.name,
@@ -241,14 +216,14 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
           landSize: data.landSize
         };
         
-        await setDoc(doc(db, 'users', result.user.uid), authenticatedUser);
-        await withTimeout(updateProfile(result.user, { displayName: data.name }));
+        await dbClient.set('users', result.user.uid, authenticatedUser);
+        await withTimeout(authClient.updateProfile({ displayName: data.name }));
         
         setUser(authenticatedUser);
         sessionStorage.setItem('ks_session_user', JSON.stringify(authenticatedUser));
         sessionStorage.removeItem('ks_is_local_only');
       } catch (authErr: any) {
-        console.warn("Firebase Auth create user failed, completed registration in Local mode:", authErr.message);
+        console.warn("Auth create user failed, completed registration in Local mode:", authErr.message);
         const localUid = 'user_' + cleanedPhone;
         const newUser: User = {
           uid: localUid,
@@ -261,15 +236,14 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
           district: data.district,
           city: data.city,
           pincode: data.pincode,
-          pin: data.pin, // store pin for local-first matching
+          pin: data.pin,
           landSize: data.landSize
         };
         
-        // Save locally to mock firestore
         try {
-          await setDoc(doc(db, 'users', localUid), newUser);
+          await dbClient.set('users', localUid, newUser);
         } catch (e) {
-          console.error("Local setDoc failed", e);
+          console.error("Local set failed", e);
         }
         
         setUser(newUser);
@@ -285,9 +259,16 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
   const logout = async () => {
     try {
-      await signOut(auth);
+      await authClient.signOut();
     } catch (e) {
       console.error(e);
+    }
+    try {
+      const { clear } = await import('idb-keyval');
+      await clear();
+      localStorage.clear();
+    } catch (e) {
+      console.warn("Failed to clear local caches on logout:", e);
     }
     setUser(null);
     setPendingVerification(null);
@@ -300,9 +281,9 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     const updatedUser = { ...user, ...updates };
     
     try {
-      await setDoc(doc(db, 'users', user.uid), updatedUser);
+      await dbClient.set('users', user.uid, updatedUser);
     } catch (e) {
-      console.warn("Firestore update user details failed, saving locally:", e);
+      console.warn("Database update user details failed, saving locally:", e);
     }
     
     setUser(updatedUser);

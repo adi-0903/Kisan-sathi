@@ -4,7 +4,8 @@ import { useTranslation } from 'react-i18next';
 import { useAuth, UserRole } from '../lib/AuthContext';
 import { BrandLogo } from '../components/BrandLogo';
 import { ShieldCheck, CheckCircle2, Tractor, ShoppingBag, MapPin, Loader2, Search } from 'lucide-react';
-import { auth, RecaptchaVerifier, signInWithPhoneNumber } from '../lib/firebase';
+import { authClient } from '../lib/dbClient';
+
 
 type RegisterStep = 'PHONE' | 'OTP' | 'DETAILS';
 
@@ -197,25 +198,7 @@ export function RegisterScreen() {
     return '+' + cleaned;
   };
 
-  // Setup/get invisible recaptcha verifier
-  const getRecaptchaVerifier = () => {
-    if ((window as any).recaptchaVerifier) {
-      return (window as any).recaptchaVerifier;
-    }
-    try {
-      const verifier = new RecaptchaVerifier(auth, 'recaptcha-container', {
-        size: 'invisible',
-        callback: () => {
-          console.log('reCAPTCHA solved successfully');
-        }
-      });
-      (window as any).recaptchaVerifier = verifier;
-      return verifier;
-    } catch (err) {
-      console.error("Failed to create RecaptchaVerifier:", err);
-      return null;
-    }
-  };
+
 
   const handleSendOtp = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -337,7 +320,7 @@ export function RegisterScreen() {
     
     try {
       await register({ 
-        uid: auth.currentUser?.uid,
+        uid: authClient.getCurrentUser()?.uid,
         name, 
         phone, 
         pin,

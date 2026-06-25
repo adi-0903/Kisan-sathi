@@ -4,7 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { useAuth } from '../lib/AuthContext';
 import { ArrowRight, Loader2, ShieldCheck, KeyRound } from 'lucide-react';
 import { BrandLogo } from '../components/BrandLogo';
-import { auth, db, getDoc, doc, RecaptchaVerifier, signInWithPhoneNumber } from '../lib/firebase';
+import { dbClient } from '../lib/dbClient';
 
 type LoginMode = 'PIN' | 'OTP';
 
@@ -126,10 +126,9 @@ export function LoginScreen() {
 
       try {
         // Try locating user by local key 'user_' + phone segment
-        const localDocRef = doc(db, 'users', 'user_' + cleanedPhone);
-        const localSnap = await getDoc(localDocRef);
-        if (localSnap.exists()) {
-          userData = localSnap.data();
+        const localSnap = await dbClient.get('users', 'user_' + cleanedPhone);
+        if (localSnap.exists) {
+          userData = localSnap.data;
           foundUser = true;
         } else {
           // Check ks_db_users local cache

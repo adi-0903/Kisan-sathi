@@ -3,7 +3,7 @@ import { Store, Plus, Tag, MapPin, Search, Package, TrendingUp, X, Image as Imag
 import { motion, AnimatePresence } from 'framer-motion';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '../lib/AuthContext';
-import { db, collection, query, where, onSnapshot, addDoc, serverTimestamp, doc, updateDoc, deleteDoc } from '../lib/firebase';
+import { dbClient } from '../lib/dbClient';
 
 export function D2CScreen() {
   const { t } = useTranslation();
@@ -27,9 +27,8 @@ export function D2CScreen() {
   // Fetch products
   useEffect(() => {
     if (user && activeTab === 'listings') {
-      const q = query(collection(db, 'products'), where('supplierId', '==', user.uid));
-      const unsub = onSnapshot(q, (snapshot) => {
-        setProducts(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+      const unsub = dbClient.subscribe('products', [{ field: 'supplierId', op: '==', value: user.uid }], (items) => {
+        setProducts(items);
       });
       return () => unsub();
     }
@@ -38,9 +37,8 @@ export function D2CScreen() {
   // Fetch orders
   useEffect(() => {
     if (user && activeTab === 'orders') {
-      const q = query(collection(db, 'orders'), where('supplierId', '==', user.uid));
-      const unsub = onSnapshot(q, (snapshot) => {
-        setOrders(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+      const unsub = dbClient.subscribe('orders', [{ field: 'supplierId', op: '==', value: user.uid }], (items) => {
+        setOrders(items);
       });
       return () => unsub();
     }
@@ -52,7 +50,7 @@ export function D2CScreen() {
     
     try {
       if (editingProduct) {
-        await updateDoc(doc(db, 'products', editingProduct.id), {
+        await dbClient.update('products', editingProduct.id, {
           name: newProduct.name,
           category: newProduct.category || 'Vegetables',
           price: Number(newProduct.price),
@@ -60,7 +58,7 @@ export function D2CScreen() {
           quantity: Number(newProduct.quantity),
         });
       } else {
-        await addDoc(collection(db, 'products'), {
+        await dbClient.add('products', {
           supplierId: user.uid,
           name: newProduct.name,
           category: newProduct.category || 'Vegetables',
@@ -69,7 +67,7 @@ export function D2CScreen() {
           quantity: Number(newProduct.quantity),
           image: newProduct.image || 'https://images.unsplash.com/photo-1542838132-92c53300491e?auto=format&fit=crop&w=200&q=80',
           status: 'Listed',
-          createdAt: serverTimestamp()
+          createdAt: new Date().toISOString()
         });
       }
 
@@ -105,7 +103,7 @@ export function D2CScreen() {
   const handleDeleteProduct = async (id: string) => {
     if (window.confirm('Are you sure you want to delete this product?')) {
       try {
-        await deleteDoc(doc(db, 'products', id));
+        await dbClient.delete('products', id);
       } catch (e) {
         console.error(e);
         alert("Error deleting product");
@@ -115,7 +113,7 @@ export function D2CScreen() {
 
   const handleToggleStock = async (p: any) => {
     try {
-      await updateDoc(doc(db, 'products', p.id), {
+      await dbClient.update('products', p.id, {
         status: p.status === 'Listed' ? 'Out of Stock' : 'Listed'
       });
     } catch (e) {
@@ -126,9 +124,9 @@ export function D2CScreen() {
 
   const updateOrderStatus = async (orderId: string, status: string) => {
     try {
-      await updateDoc(doc(db, 'orders', orderId), { 
+      await dbClient.update('orders', orderId, { 
         status,
-        updatedAt: serverTimestamp()
+        updatedAt: new Date().toISOString()
       });
     } catch (e) {
       console.error(e);
