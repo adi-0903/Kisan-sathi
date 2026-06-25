@@ -135,10 +135,9 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     try {
       const cleanedPhone = phone.replace(/\D/g, '');
       const email = getFakeEmail(cleanedPhone);
-      const password = getFakePassword(pin);
-      
+      // Pass raw pin to signInWithEmailAndPassword
       try {
-        await withTimeout(signInWithEmailAndPassword(auth, email, password));
+        await withTimeout(signInWithEmailAndPassword(auth, email, pin));
         return true;
       } catch (authErr: any) {
         console.warn("Firebase Auth sign-in failed, checking safe local fallback:", authErr.message);
@@ -147,32 +146,25 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         let userData: any = null;
         let foundUser = false;
 
-        // Try checking by explicit local user ID 'user_' + cleanedPhone first
-        const docRef = doc(db, 'users', 'user_' + cleanedPhone);
-        const docSnap = await getDoc(docRef);
-        if (docSnap.exists()) {
-          userData = docSnap.data();
-          foundUser = true;
-        } else {
-          // Check if we can find a user in our resilient local storage ks_db_users by matching phone numbers
-          const localUsersJson = localStorage.getItem('ks_db_users');
-          if (localUsersJson) {
-            try {
-              const localUsers = JSON.parse(localUsersJson);
-              const matched = localUsers.find((u: any) => u.phone && u.phone.replace(/\D/g, '') === cleanedPhone);
-              if (matched) {
-                userData = matched;
-                foundUser = true;
-              }
-            } catch (err) {
-              console.warn("Error parsing local users db", err);
+        // Skip getDoc because backend blocks unauthenticated user fetches now
+        // Check if we can find a user in our resilient local storage ks_db_users by matching phone numbers
+        const localUsersJson = localStorage.getItem('ks_db_users');
+        if (localUsersJson) {
+          try {
+            const localUsers = JSON.parse(localUsersJson);
+            const matched = localUsers.find((u: any) => u.phone && u.phone.replace(/\D/g, '') === cleanedPhone);
+            if (matched) {
+              userData = matched;
+              foundUser = true;
             }
+          } catch (err) {
+            console.warn("Error parsing local users db", err);
           }
         }
         
         if (foundUser && userData) {
           // Validate stored pin 
-          if (userData.pin === pin || getFakePassword(userData.pin || '') === password) {
+          if (userData.pin === pin || getFakePassword(userData.pin || '') === getFakePassword(pin)) {
             setUser(userData);
             sessionStorage.setItem('ks_session_user', JSON.stringify(userData));
             sessionStorage.setItem('ks_is_local_only', 'true');

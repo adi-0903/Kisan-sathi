@@ -46,23 +46,35 @@ const getFakePassword = (pin: string) => `${pin}000000`.substring(0, 6);
 
 export async function signInWithEmailAndPassword(authInstance: any, email: string, pinCodeFakePassword: any) {
   const phone = email.split('@')[0];
+  
   try {
-    const res = await fetch(`/api/db/get?collection=users&docId=user_${phone}`);
+    const res = await fetch('/api/auth/verify-pin', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ phone, pin: pinCodeFakePassword })
+    });
+    
     if (res.ok) {
-      const userData = await res.json();
-      if (userData && (userData.pin === pinCodeFakePassword || getFakePassword(userData.pin || '') === pinCodeFakePassword)) {
+      const data = await res.json();
+      if (data.success && data.user) {
         mockCurrentUser = {
-          uid: userData.uid || `user_${phone}`,
+          uid: data.user.uid || `user_${phone}`,
           email: email,
-          displayName: userData.name || null,
-          phoneNumber: userData.phone || phone,
+          displayName: data.user.name || null,
+          phoneNumber: data.user.phone || phone,
         };
         triggerAuthListeners();
         return { user: mockCurrentUser };
       }
+    } else {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.error || "Invalid PIN");
     }
-  } catch (err) {
-    console.warn("Mock signin fetch failed, falling back to local verification:", err);
+  } catch (err: any) {
+    console.warn("Mock signin fetch failed, falling back to local verification:", err.message);
+    if (err.message === "Invalid PIN" || err.message === "User not found") {
+      throw err;
+    }
   }
   
   // Try checking ks_db_users local cache if backend failed
