@@ -70,8 +70,16 @@ export function ConsumerHomeScreen() {
   const addToCart = (product: any) => {
     const existing = cart.find(item => item.product.id === product.id);
     if (existing) {
+      if (product.quantity !== undefined && existing.quantity >= product.quantity) {
+        showNotification(`Only ${product.quantity} ${product.unit} available`, true);
+        return;
+      }
       setCart(cart.map(item => item.product.id === product.id ? { ...item, quantity: item.quantity + 1 } : item));
     } else {
+      if (product.quantity !== undefined && product.quantity <= 0) {
+        showNotification(`Out of stock`, true);
+        return;
+      }
       setCart([...cart, { product, quantity: 1 }]);
     }
     showNotification(`Added ${product.name} to cart`);
@@ -170,6 +178,17 @@ export function ConsumerHomeScreen() {
           createdAt: new Date().toISOString(),
           updatedAt: new Date().toISOString()
         });
+
+        // Decrement product quantity
+        for (const item of items) {
+          if (item.product.quantity !== undefined) {
+            const newQuantity = Math.max(0, item.product.quantity - item.quantity);
+            await dbClient.update('products', item.product.id, {
+              quantity: newQuantity,
+              status: newQuantity === 0 ? 'Out of Stock' : (item.product.status || 'Listed')
+            });
+          }
+        }
       }
       setCart([]);
       setShowCheckout(false);
@@ -311,6 +330,11 @@ export function ConsumerHomeScreen() {
                         <div className="flex items-center space-x-1 mt-1 text-[10px] text-emerald-800 font-bold bg-emerald-50 px-1.5 py-0.5 rounded w-max">
                           <UserIcon size={9} />
                           <span>Mfd: {p.farmerName.split(' ')[0]}</span>
+                        </div>
+                      )}
+                      {p.quantity !== undefined && p.quantity > 0 && (
+                        <div className="text-[10px] font-medium text-gray-500 mt-1">
+                          Available: {p.quantity} {p.unit}
                         </div>
                       )}
                     </div>
