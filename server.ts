@@ -1163,9 +1163,9 @@ Respond in JSON format: { "recommendation": "Spray Now / Wait", "reasoning": "Si
       const { db } = await import("./src/db/index.js");
       const { appData } = await import("./src/db/schema.js");
 
-      const docId = Math.random().toString(36).substring(2, 10);
+      const docId = data.id || Math.random().toString(36).substring(2, 10);
       const now = new Date().toISOString();
-      const docData = { id: docId, uid: docId, ...data, createdAt: data.createdAt || now };
+      const docData = { ...data, id: docId, uid: docId, createdAt: data.createdAt || now };
 
       await db.insert(appData).values({
         id: `${collection}:${docId}`,
