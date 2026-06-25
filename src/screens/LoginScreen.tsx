@@ -150,11 +150,11 @@ export function LoginScreen() {
 
       if (foundUser && userData) {
         setUser(userData);
-        localStorage.setItem('ks_session_user', JSON.stringify(userData));
+        sessionStorage.setItem('ks_session_user', JSON.stringify(userData));
         if (isSandbox) {
-          localStorage.setItem('ks_is_local_only', 'true');
+          sessionStorage.setItem('ks_is_local_only', 'true');
         } else {
-          localStorage.removeItem('ks_is_local_only');
+          sessionStorage.removeItem('ks_is_local_only');
         }
         navigate('/');
       } else {

@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { auth, db, doc, getDoc, setDoc } from './firebase';
-import { signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, onAuthStateChanged, updateProfile } from 'firebase/auth';
+import { signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, onAuthStateChanged, updateProfile, setPersistence, browserSessionPersistence } from 'firebase/auth';
 
 export type UserRole = 'consumer' | 'supplier';
 
@@ -65,9 +65,14 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   });
 
   useEffect(() => {
-    // 1. Recover standard session immediately from localStorage for ultra-fast loading & offline fallback
+    // Configure Firebase Auth to use session persistence (ends when tab/window is closed)
+    setPersistence(auth, browserSessionPersistence).catch((err) => {
+      console.warn("Failed to set Firebase Auth persistence to session", err);
+    });
+
+    // 1. Recover standard session immediately from sessionStorage for ultra-fast loading & offline fallback
     try {
-      const localSession = localStorage.getItem('ks_session_user');
+      const localSession = sessionStorage.getItem('ks_session_user');
       if (localSession) {
         setUser(JSON.parse(localSession));
         setLoading(false);
@@ -85,16 +90,16 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
           if (docSnap.exists()) {
             const userData = docSnap.data() as User;
             setUser(userData);
-            localStorage.setItem('ks_session_user', JSON.stringify(userData));
+            sessionStorage.setItem('ks_session_user', JSON.stringify(userData));
           }
         } catch (dbErr) {
-          console.warn("Firestore user fetch failed, sticking to local storage if available", dbErr);
+          console.warn("Firestore user fetch failed, sticking to session storage if available", dbErr);
         }
       } else {
-        const isLocalOnly = localStorage.getItem('ks_is_local_only');
+        const isLocalOnly = sessionStorage.getItem('ks_is_local_only');
         if (!isLocalOnly) {
           setUser(null);
-          localStorage.removeItem('ks_session_user');
+          sessionStorage.removeItem('ks_session_user');
         }
       }
       setLoading(false);
@@ -157,8 +162,8 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
           // Validate stored pin 
           if (userData.pin === pin || getFakePassword(userData.pin || '') === password) {
             setUser(userData);
-            localStorage.setItem('ks_session_user', JSON.stringify(userData));
-            localStorage.setItem('ks_is_local_only', 'true');
+            sessionStorage.setItem('ks_session_user', JSON.stringify(userData));
+            sessionStorage.setItem('ks_is_local_only', 'true');
             return true;
           }
         }
@@ -198,8 +203,8 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         await withTimeout(updateProfile(auth.currentUser, { displayName: data.name }));
         
         setUser(authenticatedUser);
-        localStorage.setItem('ks_session_user', JSON.stringify(authenticatedUser));
-        localStorage.removeItem('ks_is_local_only');
+        sessionStorage.setItem('ks_session_user', JSON.stringify(authenticatedUser));
+        sessionStorage.removeItem('ks_is_local_only');
         setPendingVerification(null);
         return;
       }
@@ -226,8 +231,8 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         await withTimeout(updateProfile(result.user, { displayName: data.name }));
         
         setUser(authenticatedUser);
-        localStorage.setItem('ks_session_user', JSON.stringify(authenticatedUser));
-        localStorage.removeItem('ks_is_local_only');
+        sessionStorage.setItem('ks_session_user', JSON.stringify(authenticatedUser));
+        sessionStorage.removeItem('ks_is_local_only');
       } catch (authErr: any) {
         console.warn("Firebase Auth create user failed, completed registration in Local mode:", authErr.message);
         const localUid = 'user_' + cleanedPhone;
@@ -254,8 +259,8 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         }
         
         setUser(newUser);
-        localStorage.setItem('ks_session_user', JSON.stringify(newUser));
-        localStorage.setItem('ks_is_local_only', 'true');
+        sessionStorage.setItem('ks_session_user', JSON.stringify(newUser));
+        sessionStorage.setItem('ks_is_local_only', 'true');
       }
       setPendingVerification(null);
     } catch (e: any) {
@@ -272,8 +277,8 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     }
     setUser(null);
     setPendingVerification(null);
-    localStorage.removeItem('ks_session_user');
-    localStorage.removeItem('ks_is_local_only');
+    sessionStorage.removeItem('ks_session_user');
+    sessionStorage.removeItem('ks_is_local_only');
   };
 
   const updateUser = async (updates: Partial<User>) => {
@@ -287,7 +292,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     }
     
     setUser(updatedUser);
-    localStorage.setItem('ks_session_user', JSON.stringify(updatedUser));
+    sessionStorage.setItem('ks_session_user', JSON.stringify(updatedUser));
   };
 
   return (
