@@ -300,6 +300,14 @@ export function serverTimestamp() {
   return new Date().toISOString();
 }
 
+function getAuthHeaders(extraHeaders: any = {}) {
+  const headers: any = { ...extraHeaders };
+  if (mockCurrentUser && mockCurrentUser.uid) {
+    headers['x-session-uid'] = mockCurrentUser.uid;
+  }
+  return headers;
+}
+
 export async function addDoc(collectionRef: any, data: any) {
   const collectionName = collectionRef.path;
   const newId = Math.random().toString(36).substring(2, 10);
@@ -314,7 +322,7 @@ export async function addDoc(collectionRef: any, data: any) {
   try {
     const res = await fetch('/api/db/add', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: getAuthHeaders({ 'Content-Type': 'application/json' }),
       body: JSON.stringify({ collection: collectionName, data: docData })
     });
     if (!res.ok) {
@@ -342,7 +350,7 @@ export async function setDoc(docRef: any, data: any) {
   try {
     const res = await fetch('/api/db/set', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: getAuthHeaders({ 'Content-Type': 'application/json' }),
       body: JSON.stringify({ collection: collectionName, docId: id, data: docData })
     });
     if (!res.ok) {
@@ -369,7 +377,9 @@ export async function getDoc(docRef: any) {
   const { collectionName, id } = docRef;
 
   try {
-    const res = await fetch(`/api/db/get?collection=${collectionName}&docId=${id}`);
+    const res = await fetch(`/api/db/get?collection=${collectionName}&docId=${id}`, {
+      headers: getAuthHeaders()
+    });
     if (res.status === 404) {
       return {
         exists: () => false,
@@ -408,7 +418,7 @@ export async function updateDoc(docRef: any, data: any) {
   try {
     const res = await fetch('/api/db/update', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: getAuthHeaders({ 'Content-Type': 'application/json' }),
       body: JSON.stringify({ collection: collectionName, docId: id, data })
     });
     if (!res.ok) {
@@ -436,7 +446,7 @@ export async function deleteDoc(docRef: any) {
   try {
     const res = await fetch('/api/db/delete', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: getAuthHeaders({ 'Content-Type': 'application/json' }),
       body: JSON.stringify({ collection: collectionName, docId: id })
     });
     if (!res.ok) {
@@ -500,7 +510,9 @@ export function onSnapshot(queryOrRef: any, onNext: (snap: any) => void, onError
   // 2. Fetch from Neon DB Postgres immediately to sync state
   const fetchFromBackend = async () => {
     try {
-      const res = await fetch(`/api/db/list?collection=${collectionName}`);
+      const res = await fetch(`/api/db/list?collection=${collectionName}`, {
+        headers: getAuthHeaders()
+      });
       if (res.ok) {
         const backendItems = await res.json();
         

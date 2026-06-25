@@ -5,14 +5,14 @@ import cors from "cors";
 import path from "path";
 import { createServer as createViteServer } from "vite";
 
-import healthRoutes from "./server/routes/health";
-import aiRoutes from "./server/routes/ai";
-import dbRoutes from "./server/routes/db";
-import weatherRoutes from "./server/routes/weather";
-import marketRoutes from "./server/routes/market";
-import otpRoutes from "./server/routes/otp";
-import locationsRoutes from "./server/routes/locations";
-import authRoutes from "./server/routes/auth";
+import healthRoutes from "./routes/health";
+import aiRoutes from "./routes/ai";
+import dbRoutes from "./routes/db";
+import weatherRoutes from "./routes/weather";
+import marketRoutes from "./routes/market";
+import otpRoutes from "./routes/otp";
+import locationsRoutes from "./routes/locations";
+import authRoutes from "./routes/auth";
 
 console.log("=== KisaniSaathi Server Startup ===");
 const envVars = [
@@ -40,7 +40,7 @@ async function startServer() {
 
   // Initialize and verify Neon DB table exists
   try {
-    const { createPool } = await import("./src/db/index.js");
+    const { createPool } = await import("../src/db/index.js");
     const pool = createPool();
     await pool.query(`
       CREATE TABLE IF NOT EXISTS app_data (
@@ -92,8 +92,8 @@ async function startServer() {
   // Neon DB Test Route
   app.get("/api/test-neon", async (req, res) => {
     try {
-      const { db } = await import("./src/db/index.js");
-      const { neonTestTable } = await import("./src/db/schema.js");
+      const { db } = await import("../src/db/index.js");
+      const { neonTestTable } = await import("../src/db/schema.js");
       
       await db.insert(neonTestTable).values({
         message: `Test message ${new Date().toISOString()}`

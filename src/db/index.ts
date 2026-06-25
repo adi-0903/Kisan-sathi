@@ -4,8 +4,11 @@ import * as schema from "./schema";
 
 const { Pool } = pg;
 
-// Use the user's Neon connection string directly or via env
-const connectionString = process.env.NEON_DATABASE_URL || "postgresql://neondb_owner:npg_kr8Aox0JEecp@ep-dark-moon-aqr1a891-pooler.c-8.us-east-1.aws.neon.tech/neondb?sslmode=require";
+// Use the user's Neon connection string via env
+const connectionString = process.env.NEON_DATABASE_URL;
+if (!connectionString) {
+  throw new Error("NEON_DATABASE_URL environment variable is required");
+}
 
 export const createPool = () => {
   return new Pool({
