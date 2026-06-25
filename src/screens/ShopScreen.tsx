@@ -18,6 +18,7 @@ interface Product {
   icon: React.ReactNode;
   unit: string;
   image?: string;
+  supplierId?: string;
 }
 
 export function ShopScreen() {
