@@ -16,6 +16,10 @@ export function CropsScreen() {
   const [variety, setVariety] = useState('');
   const [area, setArea] = useState('');
   const [sown, setSown] = useState('');
+  
+  // Sponsorship fields
+  const [isSponsored, setIsSponsored] = useState(false);
+  const [sponsorshipPrice, setSponsorshipPrice] = useState('');
 
   const handleAddCrop = (e: React.FormEvent) => {
     e.preventDefault();
@@ -38,7 +42,9 @@ export function CropsScreen() {
       area: area ? `${area} Acres` : '1 Acre',
       health: 'Healthy',
       progress: 0,
-      color: 'bg-green-500'
+      color: 'bg-green-500',
+      isSponsored,
+      sponsorshipPrice: isSponsored ? (sponsorshipPrice || '5000') : null
     };
     
     setCrops([newCrop, ...crops]);
@@ -47,6 +53,8 @@ export function CropsScreen() {
     setVariety('');
     setArea('');
     setSown('');
+    setIsSponsored(false);
+    setSponsorshipPrice('');
   };
 
   return (
@@ -78,6 +86,18 @@ export function CropsScreen() {
                 {crop.health}
               </span>
             </div>
+
+            {crop.isSponsored && (
+              <div className="mb-4 bg-gradient-to-r from-amber-50 to-orange-50 dark:from-amber-900/20 dark:to-orange-900/20 p-2.5 rounded-xl border border-amber-200/50 dark:border-amber-700/30 flex items-center justify-between">
+                <div className="flex items-center text-amber-700 dark:text-amber-400">
+                  <span className="text-[10px] font-black uppercase tracking-widest flex items-center gap-1.5">
+                    <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse"></span>
+                    Available for Adoption
+                  </span>
+                </div>
+                <div className="text-xs font-black text-amber-800 dark:text-amber-300">₹{crop.sponsorshipPrice}/season</div>
+              </div>
+            )}
 
             <div className="grid grid-cols-2 gap-4 mb-4">
               <div className="flex items-center space-x-2 text-sm text-gray-600 dark:text-gray-300">
@@ -148,6 +168,27 @@ export function CropsScreen() {
                   <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-1">Area (Acres)</label>
                   <input value={area} onChange={e => setArea(e.target.value)} type="number" step="0.1" placeholder="e.g. 5" className="w-full bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-xl px-4 py-3 focus:ring-2 focus:ring-primary/50 focus:outline-none dark:text-white" />
                 </div>
+                
+                <div className="bg-amber-50 dark:bg-amber-900/10 p-4 rounded-xl border border-amber-200/50 dark:border-amber-700/30 space-y-3 mt-4">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h4 className="text-sm font-black text-amber-900 dark:text-amber-400">Adopt-a-Crop</h4>
+                      <p className="text-[10px] text-amber-700 dark:text-amber-500 mt-0.5">Let consumers sponsor this crop directly</p>
+                    </div>
+                    <label className="relative inline-flex items-center cursor-pointer">
+                      <input type="checkbox" className="sr-only peer" checked={isSponsored} onChange={e => setIsSponsored(e.target.checked)} />
+                      <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-amber-300 dark:peer-focus:ring-amber-800 rounded-full peer dark:bg-gray-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-gray-600 peer-checked:bg-amber-500"></div>
+                    </label>
+                  </div>
+                  
+                  {isSponsored && (
+                    <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }}>
+                      <label className="block text-xs font-bold text-amber-800 dark:text-amber-300 mb-1">Sponsorship Price (₹ per season)</label>
+                      <input value={sponsorshipPrice} onChange={e => setSponsorshipPrice(e.target.value)} type="number" placeholder="e.g. 5000" className="w-full bg-white dark:bg-gray-700 border border-amber-200 dark:border-amber-600/50 rounded-xl px-4 py-2.5 focus:ring-2 focus:ring-amber-500/50 focus:outline-none dark:text-white text-sm" />
+                    </motion.div>
+                  )}
+                </div>
+
                 <div className="pt-4">
                   <button type="submit" className="w-full bg-primary text-white font-bold py-4 rounded-xl shadow-md active:scale-95 transition-transform">
                     Save Crop

@@ -20,6 +20,10 @@ export function DairyScreen() {
   const [breed, setBreed] = useState('');
   const [status, setStatus] = useState('Milking');
   
+  // Sponsorship fields
+  const [isSponsored, setIsSponsored] = useState(false);
+  const [sponsorshipPrice, setSponsorshipPrice] = useState('');
+  
   const [showSavedFeedback, setShowSavedFeedback] = useState(false);
   
   const today = new Date().toISOString().split('T')[0];
@@ -35,7 +39,9 @@ export function DairyScreen() {
       id: tagId,
       breed: breed || 'Mixed',
       status,
-      yield: status === 'Milking' ? '0.0L/day' : '-'
+      yield: status === 'Milking' ? '0.0L/day' : '-',
+      isSponsored,
+      sponsorshipPrice: isSponsored ? (sponsorshipPrice || '10000') : null
     };
     
     setCattle([newCow, ...cattle]);
@@ -43,6 +49,8 @@ export function DairyScreen() {
     setTagId('');
     setBreed('');
     setStatus('Milking');
+    setIsSponsored(false);
+    setSponsorshipPrice('');
   };
 
   const handleUpdateCattle = () => {
@@ -203,6 +211,12 @@ export function DairyScreen() {
               <div>
                 <div className="font-bold text-gray-800 dark:text-gray-200">Tag #{c.id}</div>
                 <div className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">{c.breed}</div>
+                
+                {c.isSponsored && (
+                  <div className="mt-1.5 flex items-center gap-1 bg-amber-50 dark:bg-amber-900/30 text-amber-600 dark:text-amber-400 text-[9px] font-bold px-1.5 py-0.5 rounded w-max border border-amber-200 dark:border-amber-700/50">
+                    <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse"></span> Sponsored
+                  </div>
+                )}
               </div>
               <div className="text-right flex items-center justify-end space-x-3">
                 <div>
@@ -298,6 +312,26 @@ export function DairyScreen() {
                           </button>
                         ))}
                       </div>
+                    </div>
+                    
+                    <div className="bg-amber-50 dark:bg-amber-900/10 p-4 rounded-xl border border-amber-200/50 dark:border-amber-700/30 space-y-3 mt-4">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <h4 className="text-sm font-black text-amber-900 dark:text-amber-400">Sponsor-a-Cow</h4>
+                          <p className="text-[10px] text-amber-700 dark:text-amber-500 mt-0.5">Allow consumers to sponsor this cattle</p>
+                        </div>
+                        <label className="relative inline-flex items-center cursor-pointer">
+                          <input type="checkbox" className="sr-only peer" checked={editCattle.isSponsored || false} onChange={e => setEditCattle({ ...editCattle, isSponsored: e.target.checked })} />
+                          <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-amber-300 dark:peer-focus:ring-amber-800 rounded-full peer dark:bg-gray-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-gray-600 peer-checked:bg-amber-500"></div>
+                        </label>
+                      </div>
+                      
+                      {editCattle.isSponsored && (
+                        <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }}>
+                          <label className="block text-xs font-bold text-amber-800 dark:text-amber-300 mb-1">Sponsorship Price (₹ per year)</label>
+                          <input value={editCattle.sponsorshipPrice || ''} onChange={e => setEditCattle({ ...editCattle, sponsorshipPrice: e.target.value })} type="number" placeholder="e.g. 10000" className="w-full bg-white dark:bg-gray-700 border border-amber-200 dark:border-amber-600/50 rounded-xl px-4 py-2.5 focus:ring-2 focus:ring-amber-500/50 focus:outline-none dark:text-white text-sm" />
+                        </motion.div>
+                      )}
                     </div>
                   </div>
 
@@ -438,6 +472,27 @@ export function DairyScreen() {
                     ))}
                   </div>
                 </div>
+                
+                <div className="bg-amber-50 dark:bg-amber-900/10 p-4 rounded-xl border border-amber-200/50 dark:border-amber-700/30 space-y-3 mt-4">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h4 className="text-sm font-black text-amber-900 dark:text-amber-400">Sponsor-a-Cow</h4>
+                      <p className="text-[10px] text-amber-700 dark:text-amber-500 mt-0.5">Allow consumers to sponsor this cattle</p>
+                    </div>
+                    <label className="relative inline-flex items-center cursor-pointer">
+                      <input type="checkbox" className="sr-only peer" checked={isSponsored} onChange={e => setIsSponsored(e.target.checked)} />
+                      <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-amber-300 dark:peer-focus:ring-amber-800 rounded-full peer dark:bg-gray-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-gray-600 peer-checked:bg-amber-500"></div>
+                    </label>
+                  </div>
+                  
+                  {isSponsored && (
+                    <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }}>
+                      <label className="block text-xs font-bold text-amber-800 dark:text-amber-300 mb-1">Sponsorship Price (₹ per year)</label>
+                      <input value={sponsorshipPrice} onChange={e => setSponsorshipPrice(e.target.value)} type="number" placeholder="e.g. 10000" className="w-full bg-white dark:bg-gray-700 border border-amber-200 dark:border-amber-600/50 rounded-xl px-4 py-2.5 focus:ring-2 focus:ring-amber-500/50 focus:outline-none dark:text-white text-sm" />
+                    </motion.div>
+                  )}
+                </div>
+
                 <div className="pt-4 flex space-x-3">
                   <button type="button" onClick={() => setShowAdd(false)} className="w-1/2 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 font-bold py-4 rounded-xl transition hover:bg-gray-200">
                     Cancel

@@ -3,7 +3,7 @@ import { db, collection, query, where, onSnapshot, addDoc, serverTimestamp, doc 
 import { useAuth, User } from '../lib/AuthContext';
 import { useSubscription } from '../lib/subscription';
 import { useNavigate } from 'react-router-dom';
-import { ShoppingBag, MapPin, Package, Clock, CheckCircle, Database, Search, Filter, ShieldCheck, Heart, User as UserIcon, HelpCircle } from 'lucide-react';
+import { ShoppingBag, MapPin, Package, Clock, CheckCircle, Database, Search, Filter, ShieldCheck, Heart, User as UserIcon, HelpCircle, Users } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
 export function ConsumerHomeScreen() {
@@ -18,6 +18,10 @@ export function ConsumerHomeScreen() {
   const [address, setAddress] = useState(user?.village || '');
   const [phone, setPhone] = useState(user?.phone || '');
   const [mySubs, setMySubs] = useState<any[]>([]);
+  
+  // Society Cart
+  const [isGroupBuy, setIsGroupBuy] = useState(false);
+  const [societyCode, setSocietyCode] = useState('');
   
   // Filtering & Search
   const [searchQuery, setSearchQuery] = useState('');
@@ -89,7 +93,8 @@ export function ConsumerHomeScreen() {
     }
   };
 
-  const cartTotal = cart.reduce((sum, item) => sum + (item.product.price * item.quantity), 0);
+  const cartSubtotal = cart.reduce((sum, item) => sum + (item.product.price * item.quantity), 0);
+  const cartTotal = isGroupBuy ? Math.floor(cartSubtotal * 0.85) : cartSubtotal;
 
   const placeOrder = async () => {
     if (!user || cart.length === 0 || !address || !phone) return;
@@ -155,7 +160,8 @@ export function ConsumerHomeScreen() {
           price: item.product.price,
           totalAmount: item.product.price * item.quantity
         }));
-        const totalAmount = orderItems.reduce((sum, item) => sum + item.totalAmount, 0);
+        const subTotalAmount = orderItems.reduce((sum, item) => sum + item.totalAmount, 0);
+        const totalAmount = isGroupBuy ? Math.floor(subTotalAmount * 0.85) : subTotalAmount;
 
         await addDoc(collection(db, 'orders'), {
           buyerId: user.uid,
@@ -165,6 +171,8 @@ export function ConsumerHomeScreen() {
           supplierId,
           items: orderItems,
           totalAmount,
+          isGroupBuy,
+          societyCode: isGroupBuy ? societyCode : null,
           status: 'Pending',
           createdAt: serverTimestamp(),
           updatedAt: serverTimestamp()
@@ -173,6 +181,8 @@ export function ConsumerHomeScreen() {
       setCart([]);
       setShowCheckout(false);
       setActiveTab('orders');
+      setIsGroupBuy(false);
+      setSocietyCode('');
       showNotification('Order placed successfully! Track status in My Orders.');
     } catch (error) {
       console.error(error);
@@ -338,6 +348,17 @@ export function ConsumerHomeScreen() {
                 <p className="text-[10px] text-amber-800 mt-1 leading-normal font-medium">100% of order totals are directly disbursed to verified farmers, reinforcing sustainable rural wealth. Zero intermediary margins.</p>
               </div>
             </div>
+
+            {/* Society Cart Promo Widget */}
+            <div className="bg-gradient-to-r from-emerald-500 to-teal-600 p-4 rounded-3xl border border-emerald-400 shadow-md flex items-center justify-between text-white mt-4">
+              <div>
+                <h4 className="text-sm font-black flex items-center gap-1.5"><Package size={16} /> Society Cart</h4>
+                <p className="text-[10px] text-emerald-100 mt-1 font-medium leading-relaxed max-w-[200px]">Pool orders with neighbors. Lower carbon footprints and get <span className="font-black bg-white/20 px-1 rounded">15% OFF</span> delivery!</p>
+              </div>
+              <div className="bg-white/20 p-2.5 rounded-2xl backdrop-blur-sm shadow-sm border border-white/10">
+                <Users size={24} className="text-white" />
+              </div>
+            </div>
           </div>
         )}
 
@@ -355,7 +376,14 @@ export function ConsumerHomeScreen() {
                   <div className="flex justify-between items-center pb-2.5 border-b border-gray-50">
                     <div>
                       <div className="text-xs font-bold text-gray-400">ORDER NO.</div>
-                      <div className="text-xs font-black text-gray-800">#{o.id?.slice(0, 8).toUpperCase()}</div>
+                      <div className="flex items-center gap-2">
+                        <div className="text-xs font-black text-gray-800">#{o.id?.slice(0, 8).toUpperCase()}</div>
+                        {o.isGroupBuy && (
+                          <span className="bg-teal-50 text-teal-600 border border-teal-100 text-[8px] px-1.5 py-0.5 rounded font-black flex items-center gap-1">
+                            <Users size={8} /> Society Drop
+                          </span>
+                        )}
+                      </div>
                     </div>
                     <div className={`text-[10px] px-2.5 py-1 rounded-full font-black flex items-center gap-1 shadow-sm
                       ${o.status === 'Pending' ? 'bg-orange-50 text-orange-600 border border-orange-100' : 
@@ -506,6 +534,34 @@ export function ConsumerHomeScreen() {
                   className="w-full bg-gray-50 border border-gray-200 rounded-2xl px-4 py-3 text-sm font-bold outline-none focus:ring-2 focus:ring-emerald-500 text-gray-850" 
                   placeholder="Receiver mobile number" 
                 />
+              </div>
+
+              <div className="bg-emerald-50/50 p-4 rounded-2xl border border-emerald-100 space-y-3">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h4 className="text-sm font-black text-emerald-900 flex items-center gap-1"><Users size={16} /> Group Buy (Society Cart)</h4>
+                    <p className="text-[10px] text-emerald-700 font-medium mt-0.5">Pool delivery & get 15% off cart total</p>
+                  </div>
+                  <label className="relative inline-flex items-center cursor-pointer">
+                    <input type="checkbox" className="sr-only peer" checked={isGroupBuy} onChange={e => setIsGroupBuy(e.target.checked)} />
+                    <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-emerald-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-600"></div>
+                  </label>
+                </div>
+                
+                <AnimatePresence>
+                  {isGroupBuy && (
+                    <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }}>
+                      <label className="block text-xs font-black text-emerald-800 mb-1.5 mt-2">Society / Apartment Code</label>
+                      <input 
+                        type="text" 
+                        value={societyCode} 
+                        onChange={e => setSocietyCode(e.target.value)} 
+                        className="w-full bg-white border border-emerald-200 rounded-xl px-4 py-3 text-sm font-bold outline-none focus:ring-2 focus:ring-emerald-500 text-gray-850" 
+                        placeholder="e.g. GREENWOODS-A" 
+                      />
+                    </motion.div>
+                  )}
+                </AnimatePresence>
               </div>
             </div>
 

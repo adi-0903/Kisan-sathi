@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { eq, and } from "drizzle-orm";
+import { eq, and, like } from "drizzle-orm";
 import { db } from "../../src/db/index.js";
 import { appData } from "../../src/db/schema.js";
 import { requireAuth } from "../middleware/auth";
@@ -29,6 +29,40 @@ router.get("/list", async (req, res) => {
   } catch (err: any) {
     console.error("Error in /api/db/list:", err);
     res.status(500).json({ error: err.message || "Database query failed" });
+  }
+});
+
+router.get("/aggregate", async (req, res) => {
+  try {
+    const { keySuffix } = req.query;
+    if (!keySuffix || typeof keySuffix !== "string") {
+      return res.status(400).json({ error: "keySuffix required" });
+    }
+
+    const rows = await db.select().from(appData).where(
+      and(
+        eq(appData.collection, "sync_state"),
+        like(appData.docId, `%${keySuffix}`)
+      )
+    );
+
+    let allItems: any[] = [];
+    rows.forEach(r => {
+      try {
+        const parsed = JSON.parse(r.data);
+        const dataArr = Array.isArray(parsed) ? parsed : (Array.isArray(parsed.value) ? parsed.value : null);
+        if (dataArr) {
+          const farmerId = r.docId.replace(keySuffix, '').replace(/_$/, '');
+          const enriched = dataArr.map((p: any) => ({ ...p, _farmerId: farmerId }));
+          allItems = allItems.concat(enriched);
+        }
+      } catch (_) {}
+    });
+
+    res.json(allItems);
+  } catch (err: any) {
+    console.error("Error in /api/db/aggregate:", err);
+    res.status(500).json({ error: err.message || "Database aggregation failed" });
   }
 });
 

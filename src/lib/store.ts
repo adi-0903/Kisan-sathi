@@ -1,5 +1,6 @@
 import { get, set, clear } from 'idb-keyval';
 import { useState, useEffect } from 'react';
+import { useAuth } from './AuthContext';
 
 export async function clearAllData() {
   await clear();
@@ -10,20 +11,94 @@ export async function clearAllData() {
 
 export function useSyncState<T>(key: string, initialValue: T): [T, (val: T) => void] {
   const [state, setState] = useState<T>(initialValue);
-  const [loaded, setLoaded] = useState(false);
+  const { user } = useAuth();
 
   useEffect(() => {
+    let isMounted = true;
+    
+    // 1. Instant load from IndexedDB cache
     get(key).then((val) => {
-      if (val !== undefined) {
+      if (isMounted && val !== undefined) {
         setState(val);
       }
-      setLoaded(true);
     });
-  }, [key]);
+
+    // 2. Fetch fresh state from NeonDB
+    if (user) {
+      const docId = `${user.uid}_${key}`;
+      fetch(`/api/db/get?collection=sync_state&docId=${docId}`, {
+        headers: { 'x-session-uid': user.uid }
+      })
+      .then(res => {
+        if (res.ok) return res.json();
+        // If 404, it's fine, we'll initialize it when they save
+      })
+      .then(data => {
+        if (isMounted && data && data.value !== undefined) {
+          setState(data.value);
+          set(key, data.value); // Sync local cache
+        }
+      })
+      .catch(e => console.warn(`NeonDB fetch failed for ${key}:`, e));
+    }
+    
+    return () => { isMounted = false; };
+  }, [key, user]);
 
   const setAndSave = (newValue: T) => {
     setState(newValue);
     set(key, newValue);
+    
+    if (user) {
+      const docId = `${user.uid}_${key}`;
+      fetch('/api/db/set', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-session-uid': user.uid
+        },
+        body: JSON.stringify({
+          collection: 'sync_state',
+          docId,
+          data: { value: newValue, updatedAt: new Date().toISOString() }
+        })
+      }).catch(e => console.error(`NeonDB set failed for ${key}:`, e));
+    }
+  };
+
+  return [state, setAndSave];
+}
+
+export function useGlobalSyncState<T>(key: string, initialValue: T): [T, (val: T) => void] {
+  const [state, setState] = useState<T>(initialValue);
+  const { user } = useAuth();
+
+  useEffect(() => {
+    let isMounted = true;
+    
+    // Consumers fetch aggregated data across all farmers
+    if (user) {
+      fetch(`/api/db/aggregate?keySuffix=${key}`, {
+        headers: { 'x-session-uid': user.uid }
+      })
+      .then(res => {
+        if (res.ok) return res.json();
+      })
+      .then(data => {
+        if (isMounted && Array.isArray(data)) {
+          // Cast data back to T (assumes T is array)
+          setState(data as unknown as T);
+        }
+      })
+      .catch(e => console.warn(`NeonDB aggregate fetch failed for ${key}:`, e));
+    }
+    
+    return () => { isMounted = false; };
+  }, [key, user]);
+
+  const setAndSave = (newValue: T) => {
+    // Read-only hook for global aggregated state
+    console.warn("useGlobalSyncState is read-only. Cannot save global state directly.");
   };
 
   return [state, setAndSave];
