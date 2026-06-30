@@ -84,7 +84,6 @@ router.post("/send", async (req, res) => {
     const messageBody = `Kisan Saathi: Your OTP verification code is ${otpCode}. Valid for 5 mins. Please do not share this code.`;
     
     const isTwilioConfigured = !!(process.env.TWILIO_ACCOUNT_SID && process.env.TWILIO_AUTH_TOKEN && process.env.TWILIO_PHONE_NUMBER);
-    let twilioError: string | null = null;
     
     if (isTwilioConfigured) {
       const result = await sendTwilioSMS(phone, messageBody);
@@ -95,15 +94,23 @@ router.post("/send", async (req, res) => {
           message: "Verification code sent to your phone!"
         });
       } else {
-        twilioError = result.error || "Unknown Twilio delivery error.";
+        return res.status(502).json({
+          error: `Failed to deliver verification SMS: ${result.error || "Unknown delivery error."}`
+        });
       }
+    }
+
+    // In production, do not leak/expose simulated OTP codes
+    if (process.env.NODE_ENV === "production") {
+      return res.status(503).json({
+        error: "SMS service is not configured. Verification code cannot be sent."
+      });
     }
 
     return res.json({
       success: true,
       mode: "simulated",
       otpCode,
-      twilioError,
       message: "Free Sandbox Mode active: Use the OTP code shown below."
     });
 

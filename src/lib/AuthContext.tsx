@@ -53,6 +53,21 @@ const withTimeout = <T,>(promise: Promise<T>, ms: number = 15000): Promise<T> =>
 export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
+
+  const saveToLocalUsersCache = (userData: User) => {
+    try {
+      const cachedUsersJson = localStorage.getItem('ks_db_users');
+      let cachedUsers: User[] = [];
+      if (cachedUsersJson) {
+        cachedUsers = JSON.parse(cachedUsersJson);
+      }
+      cachedUsers = cachedUsers.filter(u => u.uid !== userData.uid && u.phone !== userData.phone);
+      cachedUsers.push(userData);
+      localStorage.setItem('ks_db_users', JSON.stringify(cachedUsers));
+    } catch (e) {
+      console.warn("Failed to update ks_db_users cache", e);
+    }
+  };
   const [pendingVerificationState, setPendingVerificationState] = useState<PendingVerification>(() => {
     const pendingJson = localStorage.getItem('ks_pending_verification');
     if (pendingJson) {
@@ -94,6 +109,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
             setUser(userData);
             localStorage.setItem('ks_session_user', JSON.stringify(userData));
             localStorage.setItem('ks_session_expiry', (Date.now() + 7 * 24 * 60 * 60 * 1000).toString());
+            saveToLocalUsersCache(userData);
           }
         } catch (dbErr) {
           console.warn("User data fetch failed, sticking to session storage if available", dbErr);
@@ -207,6 +223,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         setUser(authenticatedUser);
         localStorage.setItem('ks_session_user', JSON.stringify(authenticatedUser));
         localStorage.setItem('ks_session_expiry', (Date.now() + 7 * 24 * 60 * 60 * 1000).toString());
+        saveToLocalUsersCache(authenticatedUser);
         localStorage.removeItem('ks_is_local_only');
         setPendingVerification(null);
         return;
@@ -235,6 +252,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         setUser(authenticatedUser);
         localStorage.setItem('ks_session_user', JSON.stringify(authenticatedUser));
         localStorage.setItem('ks_session_expiry', (Date.now() + 7 * 24 * 60 * 60 * 1000).toString());
+        saveToLocalUsersCache(authenticatedUser);
         localStorage.removeItem('ks_is_local_only');
       } catch (authErr: any) {
         console.warn("Auth create user failed, completed registration in Local mode:", authErr.message);
@@ -263,6 +281,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         setUser(newUser);
         localStorage.setItem('ks_session_user', JSON.stringify(newUser));
         localStorage.setItem('ks_session_expiry', (Date.now() + 7 * 24 * 60 * 60 * 1000).toString());
+        saveToLocalUsersCache(newUser);
         localStorage.setItem('ks_is_local_only', 'true');
       }
       setPendingVerification(null);
@@ -304,6 +323,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     
     setUser(updatedUser);
     localStorage.setItem('ks_session_user', JSON.stringify(updatedUser));
+    saveToLocalUsersCache(updatedUser);
   };
 
   return (

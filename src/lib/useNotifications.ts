@@ -28,7 +28,28 @@ export function useNotifications() {
   const triggerLocalReminder = () => {
       const pendingTasks = (tasks || []).filter(t => !t.completed);
       if (pendingTasks.length > 0) {
-        const task = pendingTasks[0];
+        // Retrieve already notified task IDs from cache
+        let notifiedTaskIds: string[] = [];
+        try {
+          const cached = localStorage.getItem('ks_notified_tasks');
+          if (cached) {
+            notifiedTaskIds = JSON.parse(cached);
+          }
+        } catch (e) {
+          console.warn("Failed to parse notified tasks cache", e);
+        }
+
+        // Find the first task that has not been notified yet
+        const task = pendingTasks.find(t => !notifiedTaskIds.includes(t.id));
+        if (!task) return;
+
+        // Save to cache to prevent duplicate alerts
+        notifiedTaskIds.push(task.id);
+        try {
+          localStorage.setItem('ks_notified_tasks', JSON.stringify(notifiedTaskIds));
+        } catch (e) {
+          console.warn("Failed to update notified tasks cache", e);
+        }
         
         if ('serviceWorker' in navigator && navigator.serviceWorker.ready) {
            navigator.serviceWorker.ready.then(reg => {

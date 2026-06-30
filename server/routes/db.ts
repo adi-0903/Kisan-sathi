@@ -1,5 +1,12 @@
+
+
+
+
+
+
+
 import { Router } from "express";
-import { eq, and, like } from "drizzle-orm";
+import { eq, and, like, or } from "drizzle-orm";
 import { db } from "../../src/db/index.js";
 import { appData, productsTable, ordersTable } from "../../src/db/schema.js";
 import { requireAuth } from "../middleware/auth";
@@ -12,6 +19,8 @@ router.use(requireAuth);
 router.get("/list", async (req, res) => {
   try {
     const { collection } = req.query;
+    const sessionUid = req.headers['x-session-uid'] as string;
+
     if (!collection || typeof collection !== "string") {
       return res.status(400).json({ error: "Collection name required" });
     }
@@ -22,14 +31,37 @@ router.get("/list", async (req, res) => {
     }
 
     if (collection === "orders") {
-      const rows = await db.select().from(ordersTable);
+      // Users should only see orders they placed or supplied
+      const rows = await db.select().from(ordersTable).where(
+        or(
+          eq(ordersTable.buyerId, sessionUid),
+          eq(ordersTable.supplierId, sessionUid)
+        )
+      );
       return res.json(rows);
     }
 
-    const rows = await db.select().from(appData).where(eq(appData.collection, collection));
+    // Users should only see their own sync_state items
+    let rows;
+    if (collection === "sync_state") {
+      rows = await db.select().from(appData).where(
+        and(
+          eq(appData.collection, collection),
+          like(appData.docId, `${sessionUid}_%`)
+        )
+      );
+    } else {
+      rows = await db.select().from(appData).where(eq(appData.collection, collection));
+    }
+
     const items = rows.map(r => {
       try {
-        return { ...JSON.parse(r.data), id: r.docId, uid: r.docId };
+        const parsed = JSON.parse(r.data);
+        // Strip out plaintext PIN from other users' profiles
+        if (collection === "users" && r.docId !== sessionUid) {
+          delete parsed.pin;
+        }
+        return { ...parsed, id: r.docId, uid: r.docId };
       } catch (_) {
         return null;
       }
@@ -79,6 +111,8 @@ router.get("/aggregate", async (req, res) => {
 router.get("/get", async (req, res) => {
   try {
     const { collection, docId } = req.query;
+    const sessionUid = req.headers['x-session-uid'] as string;
+
     if (!collection || typeof collection !== "string" || !docId || typeof docId !== "string") {
       return res.status(400).json({ error: "Collection and docId required" });
     }
@@ -92,6 +126,10 @@ router.get("/get", async (req, res) => {
     if (collection === "orders") {
       const [row] = await db.select().from(ordersTable).where(eq(ordersTable.id, docId));
       if (!row) return res.status(404).json({ error: "Document not found" });
+      // Enforce order ownership (must be buyer or supplier)
+      if (row.buyerId !== sessionUid && row.supplierId !== sessionUid) {
+        return res.status(403).json({ error: "Forbidden: Cannot access other users' orders" });
+      }
       return res.json(row);
     }
 
@@ -100,8 +138,18 @@ router.get("/get", async (req, res) => {
       return res.status(404).json({ error: "Document not found" });
     }
 
+    // Enforce sync_state ownership
+    if (collection === "sync_state" && !docId.startsWith(`${sessionUid}_`)) {
+      return res.status(403).json({ error: "Forbidden: Cannot access other users' sync state" });
+    }
+
     try {
-      res.json({ ...JSON.parse(row.data), id: row.docId, uid: row.docId });
+      const parsed = JSON.parse(row.data);
+      // Strip plaintext PIN if this profile belongs to another user
+      if (collection === "users" && docId !== sessionUid) {
+        delete parsed.pin;
+      }
+      res.json({ ...parsed, id: row.docId, uid: row.docId });
     } catch (_) {
       res.status(500).json({ error: "Failed to parse document data" });
     }
